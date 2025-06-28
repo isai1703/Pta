@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Pta"
+rootProject.name = "VendingAppClienteFinal"
 include ':app'
