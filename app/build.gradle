@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.example.pta'
+    namespace 'com.example.pta' // Usamos tu namespace actual
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.pta"
+        applicationId "com.example.pta" // Usamos tu applicationId actual
         minSdk 21
         targetSdk 34
         versionCode 1
