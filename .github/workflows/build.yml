@@ -22,13 +22,13 @@ jobs:
           java-version: 17
 
       - name: Create local.properties
-        run: echo "sdk.dir=\$ANDROID_HOME" > local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Build Debug APK (verbose)
-        run: ./gradlew assembleDebug --stacktrace --info
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
