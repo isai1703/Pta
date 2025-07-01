@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.example.pta' // Usa tu namespace actual o cambia a 'com.vending.app' si prefieres
+    namespace 'com.example.pta'  // O cambia a 'com.vending.app' según tu preferencia
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.pta" // Usa el applicationId que corresponda
+        applicationId "com.example.pta"  // Cambia si usas otro applicationId
         minSdk 23
         targetSdk 34
         versionCode 1
