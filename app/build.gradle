@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.vending.app'  // ✅ Cambia esto si tienes un package diferente
+    namespace 'com.vending.app'
     compileSdk 33
 
     defaultConfig {
-        applicationId "com.vending.app"  // ✅ Asegúrate que coincida con tu namespace
+        applicationId "com.vending.app"
         minSdk 21
         targetSdk 33
         versionCode 1
