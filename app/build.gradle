@@ -1,10 +1,10 @@
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android' // si estás usando Kotlin
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
-    namespace 'com.isai1703.pta'
+    namespace 'com.isai1703.pta'  // ✅ Namespace unificado
     compileSdk 34
 
     defaultConfig {
