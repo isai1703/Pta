@@ -4,8 +4,7 @@ plugins {
 }
 
 android {
-    namespace 'com.isai1703.pta' // ✅ este es el que causa el error si falta
-    compileSdk 33
+    namespace 'com.isai1703.pta' //
 
     defaultConfig {
         applicationId "com.isai1703.pta"
@@ -40,3 +39,4 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.1'
     implementation 'androidx.activity:activity-ktx:1.7.2'
 }
+
