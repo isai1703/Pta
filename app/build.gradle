@@ -13,10 +13,7 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
-<<<<<<< HEAD
 
-=======
->>>>>>> bc967c0 (Conflictos resueltos: build.gradle y settings.gradle)
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
