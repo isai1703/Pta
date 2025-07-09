@@ -14,11 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-<<<<<<< HEAD
 rootProject.name = "VendingAppClienteFinal"
 include(":app")
 
-=======
-rootProject.name = "Pta"
-include(":app")
->>>>>>> bc967c0 (Conflictos resueltos: build.gradle y settings.gradle)
