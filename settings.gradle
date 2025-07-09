@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "VendingAppClienteFinal"
-include ':app'
+include(":app")
