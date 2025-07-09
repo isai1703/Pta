@@ -1,4 +1,4 @@
-package com.ejemplo.pta;
+package com.isai1703.pta;
 
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
