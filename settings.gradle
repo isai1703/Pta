@@ -7,13 +7,13 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREEFER_PROJECT_REPOS)
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
     }
 }
 
-rootProject.name = "VendingAppClienteFinal"
+rootProject.name = "Pta"
 include(":app")
 
