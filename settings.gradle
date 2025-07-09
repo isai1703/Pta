@@ -7,7 +7,7 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode_PREEFER_REPOS)
+    repositoriesMode.set(RepositoriesMode_PREEFER_PROJECT)
     repositories {
         google()
         mavenCentral()
