@@ -5,4 +5,5 @@
 .DS_Store
 /build
 /captures
-.externalNativeBuild
+.externalNativeBuildapp/build/
+Pta/
