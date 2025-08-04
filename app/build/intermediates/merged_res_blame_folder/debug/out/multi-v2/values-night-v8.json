@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.isai1703.pta.app-mergeDebugResources-26:/values-night-v8/values-night-v8.xml",
+            "outputFile": "com.isai1703.pta.app-mergeDebugResources-35:/values-night-v8/values-night-v8.xml",
             "map": [
                 {
-                    "source": "/data/data/com.termux/files/home/.gradle/caches/transforms-3/12ed39fdf6e652fd556bc123df0d9b74/transformed/appcompat-1.6.1/res/values-night-v8/values-night-v8.xml",
+                    "source": "/data/data/com.termux/files/home/.gradle/caches/transforms-3/585a44f69049fefd739e726b71b92dd3/transformed/appcompat-1.6.1/res/values-night-v8/values-night-v8.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -21,7 +21,7 @@
                     }
                 },
                 {
-                    "source": "/data/data/com.termux/files/home/.gradle/caches/transforms-3/a0e46941b7609ff2d366a578901bab65/transformed/material-1.9.0/res/values-night-v8/values-night-v8.xml",
+                    "source": "/data/data/com.termux/files/home/.gradle/caches/transforms-3/fef639da47e1090a5283a557c8e94095/transformed/material-1.11.0/res/values-night-v8/values-night-v8.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",

@@ -1,16 +1,16 @@
 {
     "logs": [
         {
-            "outputFile": "com.isai1703.pta.app-mergeDebugResources-26:/values-h320dp-port-v13/values-h320dp-port-v13.xml",
+            "outputFile": "com.isai1703.pta.app-mergeDebugResources-35:/values-h320dp-port-v13/values-h320dp-port-v13.xml",
             "map": [
                 {
-                    "source": "/data/data/com.termux/files/home/.gradle/caches/transforms-3/a0e46941b7609ff2d366a578901bab65/transformed/material-1.9.0/res/values-h320dp-port-v13/values-h320dp-port-v13.xml",
+                    "source": "/data/data/com.termux/files/home/.gradle/caches/transforms-3/fef639da47e1090a5283a557c8e94095/transformed/material-1.11.0/res/values-h320dp-port-v13/values-h320dp-port-v13.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
                         "startOffsets": "55",
-                        "endColumns": "75",
-                        "endOffsets": "126"
+                        "endColumns": "63",
+                        "endOffsets": "114"
                     }
                 }
             ]
