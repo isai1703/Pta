@@ -15,17 +15,20 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListener {
 
     private val PERMISSION_REQUEST_CODE = 100
     private lateinit var statusText: TextView
-    private lateinit var btnSendCommand: Button
+    private lateinit var recyclerProductos: RecyclerView
     private var deviceIP: String = ""
 
     private val handler = Handler(Looper.getMainLooper())
@@ -40,7 +43,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         statusText = findViewById(R.id.textEstadoESP32)
-        btnSendCommand = findViewById(R.id.btnSendCommand)
+        recyclerProductos = findViewById(R.id.recyclerProductos)
 
         checkAndRequestPermissions()
 
@@ -58,15 +61,22 @@ class MainActivity : AppCompatActivity() {
         }
 
         connectToESP32Bluetooth()
+        inicializarCatalogo()
+    }
 
-        btnSendCommand.setOnClickListener {
-            val command = "ACTIVAR"
-            if (bluetoothSocket != null && bluetoothSocket!!.isConnected) {
-                sendCommandBluetooth(command)
-            } else {
-                sendCommandToESP32(command)
-            }
-        }
+    private fun inicializarCatalogo() {
+        val productos = listOf(
+            Producto("Coca Cola", 15.0, "CMD_COCA", R.drawable.coca_cola),
+            Producto("Pepsi", 14.0, "CMD_PEPSI", R.drawable.pepsi),
+            Producto("Agua", 10.0, "CMD_AGUA", R.drawable.agua)
+        )
+
+        recyclerProductos.layoutManager = LinearLayoutManager(this)
+        recyclerProductos.adapter = ProductoAdapter(productos, this)
+    }
+
+    override fun onProductoClick(comando: String) {
+        sendCommandToESP32(comando)
     }
 
     private fun checkAndRequestPermissions() {
@@ -75,11 +85,9 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             permissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
-
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
             permissionsNeeded.add(Manifest.permission.BLUETOOTH_SCAN)
         }
-
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             permissionsNeeded.add(Manifest.permission.BLUETOOTH_CONNECT)
         }
@@ -176,11 +184,7 @@ class MainActivity : AppCompatActivity() {
     private fun startPeriodicStatusUpdate() {
         handler.post(object : Runnable {
             override fun run() {
-                if (bluetoothSocket != null && bluetoothSocket!!.isConnected) {
-                    readBluetoothData()
-                } else {
-                    fetchStatusFromESP32()
-                }
+                fetchStatusFromESP32()
                 handler.postDelayed(this, statusUpdateInterval)
             }
         })
@@ -190,7 +194,9 @@ class MainActivity : AppCompatActivity() {
         Thread {
             try {
                 if (deviceIP.isEmpty()) {
-                    runOnUiThread { statusText.text = "IP no configurada" }
+                    runOnUiThread {
+                        statusText.text = "IP no configurada"
+                    }
                     return@Thread
                 }
                 val url = URL("http://$deviceIP/status")
@@ -211,6 +217,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendCommandToESP32(command: String) {
+        if (bluetoothSocket != null && bluetoothSocket!!.isConnected) {
+            sendCommandBluetooth(command)
+        } else {
+            sendCommandHTTP(command)
+        }
+    }
+
+    private fun sendCommandBluetooth(command: String) {
+        Thread {
+            try {
+                val outputStream: OutputStream? = bluetoothSocket?.outputStream
+                outputStream?.write(command.toByteArray())
+                outputStream?.flush()
+                runOnUiThread {
+                    Toast.makeText(this, "Comando enviado por Bluetooth", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this, "Error al enviar por Bluetooth", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun sendCommandHTTP(command: String) {
         Thread {
             try {
                 if (deviceIP.isEmpty()) {
@@ -241,14 +272,18 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    // ✅ NUEVO: Conexión Bluetooth
     private fun connectToESP32Bluetooth() {
         if (bluetoothAdapter == null) {
-            runOnUiThread { statusText.text = "Bluetooth no disponible" }
+            runOnUiThread {
+                statusText.text = "Bluetooth no disponible"
+            }
             return
         }
+
         if (!bluetoothAdapter.isEnabled) {
-            runOnUiThread { statusText.text = "Bluetooth está desactivado" }
+            runOnUiThread {
+                statusText.text = "Bluetooth está desactivado"
+            }
             return
         }
 
@@ -266,55 +301,17 @@ class MainActivity : AppCompatActivity() {
                             }
                         } catch (e: Exception) {
                             e.printStackTrace()
-                            runOnUiThread { statusText.text = "Error al conectar por Bluetooth" }
+                            runOnUiThread {
+                                statusText.text = "Error al conectar por Bluetooth"
+                            }
                         }
                     }.start()
                     return
                 }
             }
-            runOnUiThread { statusText.text = "ESP32 no emparejado aún" }
-        }
-    }
-
-    // ✅ NUEVO: Enviar comando por Bluetooth
-    private fun sendCommandBluetooth(command: String) {
-        try {
-            if (bluetoothSocket != null && bluetoothSocket!!.isConnected) {
-                val outputStream = bluetoothSocket!!.outputStream
-                outputStream.write(command.toByteArray())
-                outputStream.flush()
-                runOnUiThread {
-                    Toast.makeText(this, "Comando enviado por Bluetooth", Toast.LENGTH_SHORT).show()
-                }
-            } else {
-                runOnUiThread {
-                    Toast.makeText(this, "Bluetooth no está conectado", Toast.LENGTH_SHORT).show()
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
             runOnUiThread {
-                Toast.makeText(this, "Error al enviar comando por Bluetooth", Toast.LENGTH_SHORT).show()
+                statusText.text = "ESP32 no emparejado aún"
             }
-        }
-    }
-
-    // ✅ NUEVO: Leer datos por Bluetooth
-    private fun readBluetoothData() {
-        try {
-            if (bluetoothSocket != null && bluetoothSocket!!.isConnected) {
-                val inputStream = bluetoothSocket!!.inputStream
-                if (inputStream.available() > 0) {
-                    val buffer = ByteArray(1024)
-                    val bytesRead = inputStream.read(buffer)
-                    val message = String(buffer, 0, bytesRead)
-                    runOnUiThread {
-                        statusText.text = "Estado: $message"
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 
