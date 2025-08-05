@@ -17,13 +17,6 @@ class ProductoAdapter(
         fun onProductoClick(comando: String)
     }
 
-    inner class ProductoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val imgProducto: ImageView = view.findViewById(R.id.imgProducto)
-        val txtNombre: TextView = view.findViewById(R.id.txtNombreProducto)
-        val txtPrecio: TextView = view.findViewById(R.id.txtPrecioProducto)
-        val btnComprar: Button = view.findViewById(R.id.btnComprar)
-    }
-
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_producto, parent, false)
@@ -32,13 +25,20 @@ class ProductoAdapter(
 
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
         val producto = productos[position]
-        holder.imgProducto.setImageResource(producto.imagenResId)
-        holder.txtNombre.text = producto.nombre
-        holder.txtPrecio.text = "$${producto.precio}"
-        holder.btnComprar.setOnClickListener {
+        holder.nombre.text = producto.nombre
+        holder.precio.text = "$${producto.precio}"
+        holder.imagen.setImageResource(producto.imagenResId)
+        holder.btnEnviar.setOnClickListener {
             listener.onProductoClick(producto.comando)
         }
     }
 
-    override fun getItemCount() = productos.size
+    override fun getItemCount(): Int = productos.size
+
+    class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val nombre: TextView = itemView.findViewById(R.id.textNombre)
+        val precio: TextView = itemView.findViewById(R.id.textPrecio)
+        val imagen: ImageView = itemView.findViewById(R.id.imgProducto)
+        val btnEnviar: Button = itemView.findViewById(R.id.btnEnviar)
+    }
 }

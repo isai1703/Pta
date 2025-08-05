@@ -1,3 +1,4 @@
+cat > ~/Pta-filtrado/app/src/main/java/com/isai1703/pta/MainActivity.kt << 'EOF'
 package com.isai1703.pta
 
 import android.Manifest
@@ -9,7 +10,6 @@ import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -34,7 +34,7 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
     private val handler = Handler(Looper.getMainLooper())
     private val statusUpdateInterval = 5000L // 5 segundos
 
-    // 🟦 Bluetooth
+    // Bluetooth
     private var bluetoothSocket: BluetoothSocket? = null
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
 
@@ -47,7 +47,6 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
 
         checkAndRequestPermissions()
 
-        // Cargar IP de SharedPreferences o assets
         deviceIP = loadIPFromPreferences()
         if (deviceIP.isEmpty()) {
             deviceIP = readIpFromAssets()
@@ -66,8 +65,8 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
 
     private fun inicializarCatalogo() {
         val productos = listOf(
-            Producto("Coca Cola", 15.0, "CMD_COCA", R.drawable.coca_cola),
-            Producto("Pepsi", 14.0, "CMD_PEPSI", R.drawable.pepsi),
+            Producto("Coca Cola", 15.0, "CMD_COCA", R.drawable.refresco_coca),
+            Producto("Pepsi", 14.0, "CMD_PEPSI", R.drawable.refresco_pepsi),
             Producto("Agua", 10.0, "CMD_AGUA", R.drawable.agua)
         )
 
@@ -282,48 +281,31 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
 
         if (!bluetoothAdapter.isEnabled) {
             runOnUiThread {
-                statusText.text = "Bluetooth está desactivado"
+                Toast.makeText(this, "Bluetooth apagado", Toast.LENGTH_SHORT).show()
             }
             return
         }
 
-        val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter.bondedDevices
-        if (pairedDevices != null) {
-            for (device in pairedDevices) {
-                if (device.name.contains("ESP32", ignoreCase = true)) {
-                    Thread {
-                        try {
-                            val uuid = device.uuids?.get(0)?.uuid ?: return@Thread
-                            bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
-                            bluetoothSocket?.connect()
-                            runOnUiThread {
-                                statusText.text = "Conectado por Bluetooth a ${device.name}"
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            runOnUiThread {
-                                statusText.text = "Error al conectar por Bluetooth"
-                            }
-                        }
-                    }.start()
-                    return
-                }
-            }
-            runOnUiThread {
-                statusText.text = "ESP32 no emparejado aún"
-            }
-        }
-    }
+        val device: BluetoothDevice? = bluetoothAdapter
+            ?.bondedDevices
+            ?.firstOrNull { it.name.contains("ESP32", ignoreCase = true) }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            for ((index, result) in grantResults.withIndex()) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    val deniedPermission = permissions[index]
-                    Toast.makeText(this, "Permiso necesario: $deniedPermission", Toast.LENGTH_LONG).show()
+        if (device != null) {
+            Thread {
+                try {
+                    val uuid = device.uuids?.firstOrNull()?.uuid ?: UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+                    bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
+                    bluetoothSocket?.connect()
+                    runOnUiThread {
+                        Toast.makeText(this, "Conectado por Bluetooth", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(this, "Error conectando por Bluetooth", Toast.LENGTH_SHORT).show()
+                    }
                 }
-            }
+            }.start()
         }
     }
 }
+EOF
