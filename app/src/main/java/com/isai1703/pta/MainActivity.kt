@@ -3,6 +3,8 @@ package com.isai1703.pta
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -21,6 +23,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnSendCommand: Button
     private var deviceIP: String = ""
 
+    private val handler = Handler(Looper.getMainLooper())
+    private val statusUpdateInterval = 5000L // 5 segundos
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -34,11 +39,20 @@ class MainActivity : AppCompatActivity() {
 
         Toast.makeText(this, "IP leída: $deviceIP", Toast.LENGTH_SHORT).show()
 
-        fetchStatusFromESP32()
+        startPeriodicStatusUpdate()
 
         btnSendCommand.setOnClickListener {
             sendCommandToESP32("ACTIVAR")
         }
+    }
+
+    private fun startPeriodicStatusUpdate() {
+        handler.post(object : Runnable {
+            override fun run() {
+                fetchStatusFromESP32()
+                handler.postDelayed(this, statusUpdateInterval)
+            }
+        })
     }
 
     private fun checkAndRequestPermissions() {
@@ -148,5 +162,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-}
 
+    override fun onDestroy() {
+        super.onDestroy()
+        handler.removeCallbacksAndMessages(null) // Evita memory leaks
+    }
+}
