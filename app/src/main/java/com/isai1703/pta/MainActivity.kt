@@ -60,7 +60,12 @@ class MainActivity : AppCompatActivity() {
         connectToESP32Bluetooth()
 
         btnSendCommand.setOnClickListener {
-            sendCommandToESP32("ACTIVAR")
+            val command = "ACTIVAR"
+            if (bluetoothSocket != null && bluetoothSocket!!.isConnected) {
+                sendCommandBluetooth(command)
+            } else {
+                sendCommandToESP32(command)
+            }
         }
     }
 
@@ -171,7 +176,11 @@ class MainActivity : AppCompatActivity() {
     private fun startPeriodicStatusUpdate() {
         handler.post(object : Runnable {
             override fun run() {
-                fetchStatusFromESP32()
+                if (bluetoothSocket != null && bluetoothSocket!!.isConnected) {
+                    readBluetoothData()
+                } else {
+                    fetchStatusFromESP32()
+                }
                 handler.postDelayed(this, statusUpdateInterval)
             }
         })
@@ -181,9 +190,7 @@ class MainActivity : AppCompatActivity() {
         Thread {
             try {
                 if (deviceIP.isEmpty()) {
-                    runOnUiThread {
-                        statusText.text = "IP no configurada"
-                    }
+                    runOnUiThread { statusText.text = "IP no configurada" }
                     return@Thread
                 }
                 val url = URL("http://$deviceIP/status")
@@ -237,16 +244,11 @@ class MainActivity : AppCompatActivity() {
     // ✅ NUEVO: Conexión Bluetooth
     private fun connectToESP32Bluetooth() {
         if (bluetoothAdapter == null) {
-            runOnUiThread {
-                statusText.text = "Bluetooth no disponible"
-            }
+            runOnUiThread { statusText.text = "Bluetooth no disponible" }
             return
         }
-
         if (!bluetoothAdapter.isEnabled) {
-            runOnUiThread {
-                statusText.text = "Bluetooth está desactivado"
-            }
+            runOnUiThread { statusText.text = "Bluetooth está desactivado" }
             return
         }
 
@@ -264,17 +266,55 @@ class MainActivity : AppCompatActivity() {
                             }
                         } catch (e: Exception) {
                             e.printStackTrace()
-                            runOnUiThread {
-                                statusText.text = "Error al conectar por Bluetooth"
-                            }
+                            runOnUiThread { statusText.text = "Error al conectar por Bluetooth" }
                         }
                     }.start()
                     return
                 }
             }
-            runOnUiThread {
-                statusText.text = "ESP32 no emparejado aún"
+            runOnUiThread { statusText.text = "ESP32 no emparejado aún" }
+        }
+    }
+
+    // ✅ NUEVO: Enviar comando por Bluetooth
+    private fun sendCommandBluetooth(command: String) {
+        try {
+            if (bluetoothSocket != null && bluetoothSocket!!.isConnected) {
+                val outputStream = bluetoothSocket!!.outputStream
+                outputStream.write(command.toByteArray())
+                outputStream.flush()
+                runOnUiThread {
+                    Toast.makeText(this, "Comando enviado por Bluetooth", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                runOnUiThread {
+                    Toast.makeText(this, "Bluetooth no está conectado", Toast.LENGTH_SHORT).show()
+                }
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            runOnUiThread {
+                Toast.makeText(this, "Error al enviar comando por Bluetooth", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // ✅ NUEVO: Leer datos por Bluetooth
+    private fun readBluetoothData() {
+        try {
+            if (bluetoothSocket != null && bluetoothSocket!!.isConnected) {
+                val inputStream = bluetoothSocket!!.inputStream
+                if (inputStream.available() > 0) {
+                    val buffer = ByteArray(1024)
+                    val bytesRead = inputStream.read(buffer)
+                    val message = String(buffer, 0, bytesRead)
+                    runOnUiThread {
+                        statusText.text = "Estado: $message"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -288,10 +328,5 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        handler.removeCallbacksAndMessages(null) // evita memory leaks
     }
 }
