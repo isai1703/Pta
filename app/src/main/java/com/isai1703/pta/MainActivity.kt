@@ -1,6 +1,9 @@
 package com.isai1703.pta
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothSocket
 import android.content.pm.PackageManager
 import android.net.wifi.WifiManager
 import android.os.Bundle
@@ -16,6 +19,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,6 +31,10 @@ class MainActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private val statusUpdateInterval = 5000L // 5 segundos
 
+    // 🟦 Bluetooth
+    private var bluetoothSocket: BluetoothSocket? = null
+    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -36,19 +44,20 @@ class MainActivity : AppCompatActivity() {
 
         checkAndRequestPermissions()
 
-        // Carga IP primero de SharedPreferences, si no hay, de assets
+        // Cargar IP de SharedPreferences o assets
         deviceIP = loadIPFromPreferences()
         if (deviceIP.isEmpty()) {
             deviceIP = readIpFromAssets()
         }
 
         if (deviceIP.isEmpty()) {
-            // Si no hay IP, escanea la red
             scanNetworkForESP32()
         } else {
             Toast.makeText(this, "IP leída: $deviceIP", Toast.LENGTH_SHORT).show()
             startPeriodicStatusUpdate()
         }
+
+        connectToESP32Bluetooth()
 
         btnSendCommand.setOnClickListener {
             sendCommandToESP32("ACTIVAR")
@@ -61,9 +70,11 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             permissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
             permissionsNeeded.add(Manifest.permission.BLUETOOTH_SCAN)
         }
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             permissionsNeeded.add(Manifest.permission.BLUETOOTH_CONNECT)
         }
@@ -122,10 +133,10 @@ class MainActivity : AppCompatActivity() {
                         break
                     }
                     conn.disconnect()
-                } catch (e: Exception) {
-                    // Ignorar excepciones
+                } catch (_: Exception) {
                 }
             }
+
             runOnUiThread {
                 if (foundIP.isNotEmpty()) {
                     deviceIP = foundIP
@@ -223,6 +234,50 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
+    // ✅ NUEVO: Conexión Bluetooth
+    private fun connectToESP32Bluetooth() {
+        if (bluetoothAdapter == null) {
+            runOnUiThread {
+                statusText.text = "Bluetooth no disponible"
+            }
+            return
+        }
+
+        if (!bluetoothAdapter.isEnabled) {
+            runOnUiThread {
+                statusText.text = "Bluetooth está desactivado"
+            }
+            return
+        }
+
+        val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter.bondedDevices
+        if (pairedDevices != null) {
+            for (device in pairedDevices) {
+                if (device.name.contains("ESP32", ignoreCase = true)) {
+                    Thread {
+                        try {
+                            val uuid = device.uuids?.get(0)?.uuid ?: return@Thread
+                            bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
+                            bluetoothSocket?.connect()
+                            runOnUiThread {
+                                statusText.text = "Conectado por Bluetooth a ${device.name}"
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            runOnUiThread {
+                                statusText.text = "Error al conectar por Bluetooth"
+                            }
+                        }
+                    }.start()
+                    return
+                }
+            }
+            runOnUiThread {
+                statusText.text = "ESP32 no emparejado aún"
+            }
+        }
+    }
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQUEST_CODE) {
@@ -237,6 +292,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        handler.removeCallbacksAndMessages(null) // Evita memory leaks
+        handler.removeCallbacksAndMessages(null) // evita memory leaks
     }
 }
