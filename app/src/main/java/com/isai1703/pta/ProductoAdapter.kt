@@ -26,14 +26,14 @@ class ProductoAdapter(
     override fun getItemCount(): Int = productos.size
 
     inner class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val nombreTextView: TextView = itemView.findViewById(R.id.tvNombreProducto)
-        private val imagenImageView: ImageView = itemView.findViewById(R.id.ivProducto)
-        private val botonEnviar: Button = itemView.findViewById(R.id.btnEnviarComando)
+        private val imagenProducto: ImageView = itemView.findViewById(R.id.imagenProducto)
+        private val nombreProducto: TextView = itemView.findViewById(R.id.nombreProducto)
+        private val btnEnviarComando: Button = itemView.findViewById(R.id.btnEnviarComando)
 
         fun bind(producto: Producto) {
-            nombreTextView.text = producto.nombre
-            imagenImageView.setImageResource(producto.imagenResId)
-            botonEnviar.setOnClickListener {
+            imagenProducto.setImageResource(producto.imagenResId)
+            nombreProducto.text = producto.nombre
+            btnEnviarComando.setOnClickListener {
                 onProductoClick(producto)
             }
         }
