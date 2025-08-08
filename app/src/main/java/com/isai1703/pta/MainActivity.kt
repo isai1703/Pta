@@ -1,4 +1,3 @@
-cat > ~/Pta-filtrado/app/src/main/java/com/isai1703/pta/MainActivity.kt << 'EOF'
 package com.isai1703.pta
 
 import android.Manifest
@@ -65,9 +64,9 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
 
     private fun inicializarCatalogo() {
         val productos = listOf(
-            Producto("Coca Cola", 15.0, "CMD_COCA", R.drawable.refresco_coca),
-            Producto("Pepsi", 14.0, "CMD_PEPSI", R.drawable.refresco_pepsi),
-            Producto("Agua", 10.0, "CMD_AGUA", R.drawable.agua)
+            Producto("Coca Cola", R.drawable.refresco_coca, "CMD_COCA"),
+            Producto("Pepsi", R.drawable.refresco_pepsi, "CMD_PEPSI"),
+            Producto("Agua", R.drawable.agua, "CMD_AGUA")
         )
 
         recyclerProductos.layoutManager = LinearLayoutManager(this)
@@ -308,4 +307,3 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
         }
     }
 }
-EOF
