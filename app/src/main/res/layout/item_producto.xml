@@ -2,43 +2,31 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:padding="12dp"
-    android:gravity="center_vertical">
+    android:background="@android:color/white"
+    android:elevation="4dp">
 
     <ImageView
-        android:id="@+id/imagenProducto"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:layout_marginEnd="12dp"
-        android:contentDescription="Imagen del producto"
-        android:scaleType="centerCrop" />
+        android:id="@+id/ivProducto"
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:scaleType="centerCrop"
+        android:contentDescription="Imagen del producto" />
 
-    <LinearLayout
-        android:layout_width="0dp"
+    <TextView
+        android:id="@+id/tvNombreProducto"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/nombreProducto"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Nombre del producto"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/precioProducto"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="$0.00"
-            android:textSize="16sp" />
-    </LinearLayout>
+        android:text="Nombre del producto"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp" />
 
     <Button
-        android:id="@+id/botonEnviar"
+        android:id="@+id/btnEnviarComando"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Enviar" />
+        android:text="Enviar comando" />
 </LinearLayout>

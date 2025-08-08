@@ -10,31 +10,32 @@ import androidx.recyclerview.widget.RecyclerView
 
 class ProductoAdapter(
     private val productos: List<Producto>,
-    private val onClick: (Producto) -> Unit
+    private val onProductoClick: (Producto) -> Unit
 ) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
 
-    inner class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val nombreTextView: TextView = itemView.findViewById(R.id.nombreProducto)
-        val precioTextView: TextView = itemView.findViewById(R.id.precioProducto)
-        val imagenImageView: ImageView = itemView.findViewById(R.id.imagenProducto)
-        val botonEnviar: Button = itemView.findViewById(R.id.botonEnviar)
-    }
-
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_producto, parent, false)
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_producto, parent, false)
         return ProductoViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
-        val producto = productos[position]
-        holder.nombreTextView.text = producto.nombre
-        holder.precioTextView.text = "$${producto.precio}"
-        holder.imagenImageView.setImageResource(producto.imagenResId)
-
-        holder.botonEnviar.setOnClickListener {
-            onClick(producto)
-        }
+        holder.bind(productos[position])
     }
 
     override fun getItemCount(): Int = productos.size
+
+    inner class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val nombreTextView: TextView = itemView.findViewById(R.id.tvNombreProducto)
+        private val imagenImageView: ImageView = itemView.findViewById(R.id.ivProducto)
+        private val botonEnviar: Button = itemView.findViewById(R.id.btnEnviarComando)
+
+        fun bind(producto: Producto) {
+            nombreTextView.text = producto.nombre
+            imagenImageView.setImageResource(producto.imagenResId)
+            botonEnviar.setOnClickListener {
+                onProductoClick(producto)
+            }
+        }
+    }
 }
