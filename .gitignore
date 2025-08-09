@@ -3,13 +3,12 @@
 .gradle
 /local.properties
 /.idea
-.DS_Store
-/build
 /captures
-.externalNativeBuild
+/output.json
+/app/build
+/build
 
-# Build dentro de la app
-app/build/
+# Archivos del sistema
+.DS_Store
+Thumbs.db
 
-# Carpeta de proyecto antigua (no subir)
-Pta/
