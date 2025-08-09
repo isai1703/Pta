@@ -1,3 +1,4 @@
+# Archivos y carpetas generados por Android Studio
 *.iml
 .gradle
 /local.properties
@@ -5,5 +6,10 @@
 .DS_Store
 /build
 /captures
-.externalNativeBuildapp/build/
+.externalNativeBuild
+
+# Build dentro de la app
+app/build/
+
+# Carpeta de proyecto antigua (no subir)
 Pta/
