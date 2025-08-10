@@ -23,17 +23,16 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
 
-class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListener {
+class MainActivity : AppCompatActivity() {
 
     private val PERMISSION_REQUEST_CODE = 100
     private lateinit var statusText: TextView
     private lateinit var recyclerProductos: RecyclerView
-    private var deviceIP: String = ""
 
+    private var deviceIP: String = ""
     private val handler = Handler(Looper.getMainLooper())
     private val statusUpdateInterval = 5000L // 5 segundos
 
-    // Bluetooth
     private var bluetoothSocket: BluetoothSocket? = null
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
 
@@ -50,7 +49,6 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
         if (deviceIP.isEmpty()) {
             deviceIP = readIpFromAssets()
         }
-
         if (deviceIP.isEmpty()) {
             scanNetworkForESP32()
         } else {
@@ -70,16 +68,13 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
         )
 
         recyclerProductos.layoutManager = LinearLayoutManager(this)
-        recyclerProductos.adapter = ProductoAdapter(productos, this)
-    }
-
-    override fun onProductoClick(comando: String) {
-        sendCommandToESP32(comando)
+        recyclerProductos.adapter = ProductoAdapter(productos) { comando ->
+            sendCommandToESP32(comando)
+        }
     }
 
     private fun checkAndRequestPermissions() {
         val permissionsNeeded = mutableListOf<String>()
-
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             permissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
@@ -89,7 +84,6 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             permissionsNeeded.add(Manifest.permission.BLUETOOTH_CONNECT)
         }
-
         if (permissionsNeeded.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, permissionsNeeded.toTypedArray(), PERMISSION_REQUEST_CODE)
         }
@@ -127,7 +121,6 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
                 }
                 return@Thread
             }
-
             var foundIP = ""
             for (i in 1..254) {
                 val testIP = "$subnet.$i"
@@ -144,10 +137,8 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
                         break
                     }
                     conn.disconnect()
-                } catch (_: Exception) {
-                }
+                } catch (_: Exception) {}
             }
-
             runOnUiThread {
                 if (foundIP.isNotEmpty()) {
                     deviceIP = foundIP
@@ -192,9 +183,7 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
         Thread {
             try {
                 if (deviceIP.isEmpty()) {
-                    runOnUiThread {
-                        statusText.text = "IP no configurada"
-                    }
+                    runOnUiThread { statusText.text = "IP no configurada" }
                     return@Thread
                 }
                 val url = URL("http://$deviceIP/status")
@@ -202,14 +191,10 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
                 conn.connectTimeout = 3000
                 conn.readTimeout = 3000
                 val response = conn.inputStream.bufferedReader().readText()
-                runOnUiThread {
-                    statusText.text = "Estado: $response"
-                }
+                runOnUiThread { statusText.text = "Estado: $response" }
                 conn.disconnect()
             } catch (e: Exception) {
-                runOnUiThread {
-                    statusText.text = "Error al obtener estado"
-                }
+                runOnUiThread { statusText.text = "Error al obtener estado" }
             }
         }.start()
     }
@@ -228,13 +213,9 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
                 val outputStream: OutputStream? = bluetoothSocket?.outputStream
                 outputStream?.write(command.toByteArray())
                 outputStream?.flush()
-                runOnUiThread {
-                    Toast.makeText(this, "Comando enviado por Bluetooth", Toast.LENGTH_SHORT).show()
-                }
+                runOnUiThread { Toast.makeText(this, "Comando enviado por Bluetooth", Toast.LENGTH_SHORT).show() }
             } catch (e: Exception) {
-                runOnUiThread {
-                    Toast.makeText(this, "Error al enviar por Bluetooth", Toast.LENGTH_SHORT).show()
-                }
+                runOnUiThread { Toast.makeText(this, "Error al enviar por Bluetooth", Toast.LENGTH_SHORT).show() }
             }
         }.start()
     }
@@ -243,9 +224,7 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
         Thread {
             try {
                 if (deviceIP.isEmpty()) {
-                    runOnUiThread {
-                        Toast.makeText(this, "IP no configurada", Toast.LENGTH_SHORT).show()
-                    }
+                    runOnUiThread { Toast.makeText(this, "IP no configurada", Toast.LENGTH_SHORT).show() }
                     return@Thread
                 }
                 val url = URL("http://$deviceIP/cmd?accion=$command")
@@ -263,45 +242,34 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
                 }
                 conn.disconnect()
             } catch (e: Exception) {
-                runOnUiThread {
-                    Toast.makeText(this, "Fallo de conexión al ESP32", Toast.LENGTH_SHORT).show()
-                }
+                runOnUiThread { Toast.makeText(this, "Fallo de conexión al ESP32", Toast.LENGTH_SHORT).show() }
             }
         }.start()
     }
 
     private fun connectToESP32Bluetooth() {
         if (bluetoothAdapter == null) {
-            runOnUiThread {
-                statusText.text = "Bluetooth no disponible"
-            }
+            runOnUiThread { statusText.text = "Bluetooth no disponible" }
             return
         }
-
         if (!bluetoothAdapter.isEnabled) {
-            runOnUiThread {
-                Toast.makeText(this, "Bluetooth apagado", Toast.LENGTH_SHORT).show()
-            }
+            runOnUiThread { Toast.makeText(this, "Bluetooth apagado", Toast.LENGTH_SHORT).show() }
             return
         }
-
         val device: BluetoothDevice? = bluetoothAdapter
-            ?.bondedDevices
-            ?.firstOrNull { it.name.contains("ESP32", ignoreCase = true) }
+            .bondedDevices
+            .firstOrNull { it.name.contains("ESP32", ignoreCase = true) }
 
         if (device != null) {
             Thread {
                 try {
-                    val uuid = device.uuids?.firstOrNull()?.uuid ?: UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+                    val uuid = device.uuids?.firstOrNull()?.uuid
+                        ?: UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
                     bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
                     bluetoothSocket?.connect()
-                    runOnUiThread {
-                        Toast.makeText(this, "Conectado por Bluetooth", Toast.LENGTH_SHORT).show()
-                    }
+                    runOnUiThread { Toast.makeText(this, "Conectado por Bluetooth", Toast.LENGTH_SHORT).show() }
                 } catch (e: Exception) {
-                    runOnUiThread {
-                        Toast.makeText(this, "Error conectando por Bluetooth", Toast.LENGTH_SHORT).show()
-                    }
+                    runOnUiThread { Toast.makeText(this, "Error conectando por Bluetooth", Toast.LENGTH_SHORT).show() }
                 }
             }.start()
         }
