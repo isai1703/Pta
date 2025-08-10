@@ -10,11 +10,16 @@ import androidx.recyclerview.widget.RecyclerView
 
 class ProductoAdapter(
     private val productos: List<Producto>,
-    private val onProductoClick: (String) -> Unit
+    private val onProductoClick: OnProductoClickListener
 ) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
 
+    interface OnProductoClickListener {
+        fun onProductoClick(comando: String)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_producto, parent, false)
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_producto, parent, false)
         return ProductoViewHolder(view)
     }
 
@@ -34,7 +39,7 @@ class ProductoAdapter(
             nombreProducto.text = producto.nombre
 
             btnEnviarComando.setOnClickListener {
-                onProductoClick(producto.comando)
+                onProductoClick.onProductoClick(producto.comando)
             }
         }
     }

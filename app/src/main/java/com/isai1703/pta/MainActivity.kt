@@ -23,16 +23,17 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListener {
 
     private val PERMISSION_REQUEST_CODE = 100
     private lateinit var statusText: TextView
     private lateinit var recyclerProductos: RecyclerView
-
     private var deviceIP: String = ""
+
     private val handler = Handler(Looper.getMainLooper())
     private val statusUpdateInterval = 5000L // 5 segundos
 
+    // Bluetooth
     private var bluetoothSocket: BluetoothSocket? = null
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
 
@@ -62,15 +63,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun inicializarCatalogo() {
         val productos = listOf(
-            Producto("Coca Cola", R.drawable.refresco_coca, "CMD_COCA"),
-            Producto("Pepsi", R.drawable.refresco_pepsi, "CMD_PEPSI"),
-            Producto("Agua", R.drawable.agua, "CMD_AGUA")
+            Producto("Coca Cola", "CMD_COCA", R.drawable.refresco_coca),
+            Producto("Pepsi", "CMD_PEPSI", R.drawable.refresco_pepsi),
+            Producto("Agua", "CMD_AGUA", R.drawable.agua)
         )
 
         recyclerProductos.layoutManager = LinearLayoutManager(this)
-        recyclerProductos.adapter = ProductoAdapter(productos) { comando ->
-            sendCommandToESP32(comando)
-        }
+        recyclerProductos.adapter = ProductoAdapter(productos, this)
+    }
+
+    override fun onProductoClick(comando: String) {
+        sendCommandToESP32(comando)
     }
 
     private fun checkAndRequestPermissions() {
@@ -121,6 +124,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 return@Thread
             }
+
             var foundIP = ""
             for (i in 1..254) {
                 val testIP = "$subnet.$i"
@@ -137,8 +141,10 @@ class MainActivity : AppCompatActivity() {
                         break
                     }
                     conn.disconnect()
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                }
             }
+
             runOnUiThread {
                 if (foundIP.isNotEmpty()) {
                     deviceIP = foundIP
@@ -183,7 +189,9 @@ class MainActivity : AppCompatActivity() {
         Thread {
             try {
                 if (deviceIP.isEmpty()) {
-                    runOnUiThread { statusText.text = "IP no configurada" }
+                    runOnUiThread {
+                        statusText.text = "IP no configurada"
+                    }
                     return@Thread
                 }
                 val url = URL("http://$deviceIP/status")
@@ -191,10 +199,14 @@ class MainActivity : AppCompatActivity() {
                 conn.connectTimeout = 3000
                 conn.readTimeout = 3000
                 val response = conn.inputStream.bufferedReader().readText()
-                runOnUiThread { statusText.text = "Estado: $response" }
+                runOnUiThread {
+                    statusText.text = "Estado: $response"
+                }
                 conn.disconnect()
             } catch (e: Exception) {
-                runOnUiThread { statusText.text = "Error al obtener estado" }
+                runOnUiThread {
+                    statusText.text = "Error al obtener estado"
+                }
             }
         }.start()
     }
@@ -213,9 +225,13 @@ class MainActivity : AppCompatActivity() {
                 val outputStream: OutputStream? = bluetoothSocket?.outputStream
                 outputStream?.write(command.toByteArray())
                 outputStream?.flush()
-                runOnUiThread { Toast.makeText(this, "Comando enviado por Bluetooth", Toast.LENGTH_SHORT).show() }
+                runOnUiThread {
+                    Toast.makeText(this, "Comando enviado por Bluetooth", Toast.LENGTH_SHORT).show()
+                }
             } catch (e: Exception) {
-                runOnUiThread { Toast.makeText(this, "Error al enviar por Bluetooth", Toast.LENGTH_SHORT).show() }
+                runOnUiThread {
+                    Toast.makeText(this, "Error al enviar por Bluetooth", Toast.LENGTH_SHORT).show()
+                }
             }
         }.start()
     }
@@ -224,7 +240,9 @@ class MainActivity : AppCompatActivity() {
         Thread {
             try {
                 if (deviceIP.isEmpty()) {
-                    runOnUiThread { Toast.makeText(this, "IP no configurada", Toast.LENGTH_SHORT).show() }
+                    runOnUiThread {
+                        Toast.makeText(this, "IP no configurada", Toast.LENGTH_SHORT).show()
+                    }
                     return@Thread
                 }
                 val url = URL("http://$deviceIP/cmd?accion=$command")
@@ -242,20 +260,28 @@ class MainActivity : AppCompatActivity() {
                 }
                 conn.disconnect()
             } catch (e: Exception) {
-                runOnUiThread { Toast.makeText(this, "Fallo de conexión al ESP32", Toast.LENGTH_SHORT).show() }
+                runOnUiThread {
+                    Toast.makeText(this, "Fallo de conexión al ESP32", Toast.LENGTH_SHORT).show()
+                }
             }
         }.start()
     }
 
     private fun connectToESP32Bluetooth() {
         if (bluetoothAdapter == null) {
-            runOnUiThread { statusText.text = "Bluetooth no disponible" }
+            runOnUiThread {
+                statusText.text = "Bluetooth no disponible"
+            }
             return
         }
+
         if (!bluetoothAdapter.isEnabled) {
-            runOnUiThread { Toast.makeText(this, "Bluetooth apagado", Toast.LENGTH_SHORT).show() }
+            runOnUiThread {
+                Toast.makeText(this, "Bluetooth apagado", Toast.LENGTH_SHORT).show()
+            }
             return
         }
+
         val device: BluetoothDevice? = bluetoothAdapter
             .bondedDevices
             .firstOrNull { it.name.contains("ESP32", ignoreCase = true) }
@@ -267,9 +293,13 @@ class MainActivity : AppCompatActivity() {
                         ?: UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
                     bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
                     bluetoothSocket?.connect()
-                    runOnUiThread { Toast.makeText(this, "Conectado por Bluetooth", Toast.LENGTH_SHORT).show() }
+                    runOnUiThread {
+                        Toast.makeText(this, "Conectado por Bluetooth", Toast.LENGTH_SHORT).show()
+                    }
                 } catch (e: Exception) {
-                    runOnUiThread { Toast.makeText(this, "Error conectando por Bluetooth", Toast.LENGTH_SHORT).show() }
+                    runOnUiThread {
+                        Toast.makeText(this, "Error conectando por Bluetooth", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }.start()
         }
