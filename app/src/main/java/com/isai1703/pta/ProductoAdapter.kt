@@ -10,11 +10,14 @@ import androidx.recyclerview.widget.RecyclerView
 
 class ProductoAdapter(
     private val productos: List<Producto>,
-    private val onProductoClick: OnProductoClickListener
+    private val onEnviarComando: (Producto) -> Unit
 ) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
 
-    interface OnProductoClickListener {
-        fun onProductoClick(comando: String)
+    inner class ProductoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val imagen: ImageView = view.findViewById(R.id.productoImagen)
+        val nombre: TextView = view.findViewById(R.id.productoNombre)
+        val precio: TextView = view.findViewById(R.id.productoPrecio)
+        val btnEnviar: Button = view.findViewById(R.id.btnEnviar)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
@@ -24,23 +27,12 @@ class ProductoAdapter(
     }
 
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
-        holder.bind(productos[position])
+        val producto = productos[position]
+        holder.imagen.setImageResource(producto.imagenResId)
+        holder.nombre.text = producto.nombre
+        holder.precio.text = "$${producto.precio}"
+        holder.btnEnviar.setOnClickListener { onEnviarComando(producto) }
     }
 
     override fun getItemCount(): Int = productos.size
-
-    inner class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val imagenProducto: ImageView = itemView.findViewById(R.id.imagenProducto)
-        private val nombreProducto: TextView = itemView.findViewById(R.id.nombreProducto)
-        private val btnEnviarComando: Button = itemView.findViewById(R.id.btnEnviarComando)
-
-        fun bind(producto: Producto) {
-            imagenProducto.setImageResource(producto.imagenResId)
-            nombreProducto.text = producto.nombre
-
-            btnEnviarComando.setOnClickListener {
-                onProductoClick.onProductoClick(producto.comando)
-            }
-        }
-    }
 }
