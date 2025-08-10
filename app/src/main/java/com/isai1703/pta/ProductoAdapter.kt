@@ -9,15 +9,15 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 class ProductoAdapter(
-    private val productos: List<Producto>,
-    private val onEnviarComando: (Producto) -> Unit
+    private val listaProductos: List<Producto>,
+    private val onProductoClick: (Producto) -> Unit
 ) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
 
-    inner class ProductoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val imagen: ImageView = view.findViewById(R.id.productoImagen)
-        val nombre: TextView = view.findViewById(R.id.productoNombre)
-        val precio: TextView = view.findViewById(R.id.productoPrecio)
-        val btnEnviar: Button = view.findViewById(R.id.btnEnviar)
+    inner class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val imagen: ImageView = itemView.findViewById(R.id.producto_imagen)
+        val nombre: TextView = itemView.findViewById(R.id.producto_nombre)
+        val precio: TextView = itemView.findViewById(R.id.producto_precio)
+        val boton: Button = itemView.findViewById(R.id.boton_enviar)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
@@ -27,12 +27,12 @@ class ProductoAdapter(
     }
 
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
-        val producto = productos[position]
+        val producto = listaProductos[position]
         holder.imagen.setImageResource(producto.imagenResId)
         holder.nombre.text = producto.nombre
         holder.precio.text = "$${producto.precio}"
-        holder.btnEnviar.setOnClickListener { onEnviarComando(producto) }
+        holder.boton.setOnClickListener { onProductoClick(producto) }
     }
 
-    override fun getItemCount(): Int = productos.size
+    override fun getItemCount(): Int = listaProductos.size
 }
