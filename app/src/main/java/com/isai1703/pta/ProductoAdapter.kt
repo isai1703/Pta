@@ -9,15 +9,12 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 class ProductoAdapter(
-    private val listaProductos: List<Producto>,
-    private val onProductoClick: (Producto) -> Unit
+    private val productos: List<Producto>,
+    private val onProductoClick: OnProductoClickListener
 ) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
 
-    inner class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val imagen: ImageView = itemView.findViewById(R.id.producto_imagen)
-        val nombre: TextView = itemView.findViewById(R.id.producto_nombre)
-        val precio: TextView = itemView.findViewById(R.id.producto_precio)
-        val boton: Button = itemView.findViewById(R.id.boton_enviar)
+    interface OnProductoClickListener {
+        fun onProductoClick(comando: String)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
@@ -27,12 +24,24 @@ class ProductoAdapter(
     }
 
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
-        val producto = listaProductos[position]
-        holder.imagen.setImageResource(producto.imagenResId)
-        holder.nombre.text = producto.nombre
-        holder.precio.text = "$${producto.precio}"
-        holder.boton.setOnClickListener { onProductoClick(producto) }
+        holder.bind(productos[position])
     }
 
-    override fun getItemCount(): Int = listaProductos.size
+    override fun getItemCount(): Int = productos.size
+
+    inner class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val imagenProducto: ImageView = itemView.findViewById(R.id.imgProducto)
+        private val nombreProducto: TextView = itemView.findViewById(R.id.tvNombreProducto)
+        private val precioProducto: TextView = itemView.findViewById(R.id.tvPrecioProducto)
+        private val botonComprar: Button = itemView.findViewById(R.id.btnComprar)
+
+        fun bind(producto: Producto) {
+            imagenProducto.setImageResource(producto.imagenResId)
+            nombreProducto.text = producto.nombre
+            precioProducto.text = producto.comando  // Aquí puedes cambiar si quieres mostrar otro texto en "precio"
+            botonComprar.setOnClickListener {
+                onProductoClick.onProductoClick(producto.comando)
+            }
+        }
+    }
 }
