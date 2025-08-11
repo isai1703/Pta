@@ -30,16 +30,16 @@ class ProductoAdapter(
     override fun getItemCount(): Int = productos.size
 
     inner class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val imagenProducto: ImageView = itemView.findViewById(R.id.imgProducto)
-        private val nombreProducto: TextView = itemView.findViewById(R.id.tvNombreProducto)
-        private val precioProducto: TextView = itemView.findViewById(R.id.tvPrecioProducto)
-        private val botonComprar: Button = itemView.findViewById(R.id.btnComprar)
+        private val imagenProducto: ImageView = itemView.findViewById(R.id.producto_imagen)
+        private val nombreProducto: TextView = itemView.findViewById(R.id.producto_nombre)
+        private val precioProducto: TextView = itemView.findViewById(R.id.producto_precio)
+        private val botonEnviar: Button = itemView.findViewById(R.id.boton_enviar)
 
         fun bind(producto: Producto) {
             imagenProducto.setImageResource(producto.imagenResId)
             nombreProducto.text = producto.nombre
-            precioProducto.text = producto.comando  // Aquí puedes cambiar si quieres mostrar otro texto en "precio"
-            botonComprar.setOnClickListener {
+            precioProducto.text = producto.precio
+            botonEnviar.setOnClickListener {
                 onProductoClick.onProductoClick(producto.comando)
             }
         }
