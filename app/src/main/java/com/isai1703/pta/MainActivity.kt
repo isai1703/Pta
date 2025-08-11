@@ -3,9 +3,11 @@ package com.isai1703.pta
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothSocket
 import android.content.pm.PackageManager
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -28,12 +30,18 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
     private val PERMISSION_REQUEST_CODE = 100
     private lateinit var statusText: TextView
     private lateinit var recyclerProductos: RecyclerView
-    private var deviceIP: String = ""
-    private val handler = Handler(Looper.getMainLooper())
-    private val statusUpdateInterval = 5000L // 5 seconds
 
+    private var deviceIP: String = ""
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val statusUpdateInterval = 5000L // 5 segundos
+
+    // Bluetooth - usar BluetoothManager para evitar deprecated
+    private val bluetoothAdapter: BluetoothAdapter? by lazy {
+        val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothManager.adapter
+    }
     private var bluetoothSocket: BluetoothSocket? = null
-    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,10 +69,11 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
 
     private fun inicializarCatalogo() {
         val productos = listOf(
-            Producto("Coca Cola", "CMD_COCA", R.drawable.refresco_coca, "$20"),
-            Producto("Pepsi", "CMD_PEPSI", R.drawable.refresco_pepsi, "$18"),
-            Producto("Agua", "CMD_AGUA", R.drawable.agua, "$15")
+            Producto("Coca Cola", "CMD_COCA", R.drawable.refresco_coca),
+            Producto("Pepsi", "CMD_PEPSI", R.drawable.refresco_pepsi),
+            Producto("Agua", "CMD_AGUA", R.drawable.agua)
         )
+
         recyclerProductos.layoutManager = LinearLayoutManager(this)
         recyclerProductos.adapter = ProductoAdapter(productos, this)
     }
@@ -75,15 +84,20 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
 
     private fun checkAndRequestPermissions() {
         val permissionsNeeded = mutableListOf<String>()
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            permissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                permissionsNeeded.add(Manifest.permission.BLUETOOTH_SCAN)
+            }
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                permissionsNeeded.add(Manifest.permission.BLUETOOTH_CONNECT)
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                permissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            permissionsNeeded.add(Manifest.permission.BLUETOOTH_SCAN)
-        }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            permissionsNeeded.add(Manifest.permission.BLUETOOTH_CONNECT)
-        }
+
         if (permissionsNeeded.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, permissionsNeeded.toTypedArray(), PERMISSION_REQUEST_CODE)
         }
@@ -121,6 +135,7 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
                 }
                 return@Thread
             }
+
             var foundIP = ""
             for (i in 1..254) {
                 val testIP = "$subnet.$i"
@@ -140,6 +155,7 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
                 } catch (_: Exception) {
                 }
             }
+
             runOnUiThread {
                 if (foundIP.isNotEmpty()) {
                     deviceIP = foundIP
@@ -157,15 +173,14 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
     private fun getSubnet(): String {
         return try {
             val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-            val ipAddress = wifiManager.connectionInfo.ipAddress
-            val ip = String.format(
-                "%d.%d.%d.%d",
+            val dhcpInfo = wifiManager.dhcpInfo
+            val ipAddress = dhcpInfo.ipAddress
+            String.format(
+                "%d.%d.%d",
                 ipAddress and 0xff,
                 ipAddress shr 8 and 0xff,
-                ipAddress shr 16 and 0xff,
-                ipAddress shr 24 and 0xff
+                ipAddress shr 16 and 0xff
             )
-            ip.substringBeforeLast(".")
         } catch (e: Exception) {
             ""
         }
@@ -269,15 +284,18 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
             }
             return
         }
+
         if (!bluetoothAdapter.isEnabled) {
             runOnUiThread {
                 Toast.makeText(this, "Bluetooth apagado", Toast.LENGTH_SHORT).show()
             }
             return
         }
+
         val device: BluetoothDevice? = bluetoothAdapter
             .bondedDevices
             .firstOrNull { it.name.contains("ESP32", ignoreCase = true) }
+
         if (device != null) {
             Thread {
                 try {
