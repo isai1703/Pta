@@ -9,7 +9,6 @@ import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -27,18 +26,12 @@ import java.util.*
 class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListener {
 
     private val PERMISSION_REQUEST_CODE = 100
-
-    private lateinit var tvIp: TextView
-    private lateinit var tvEstadoConexion: TextView
-    private lateinit var btnConectar: Button
-    private lateinit var btnActualizar: Button
-    private lateinit var rvProductos: RecyclerView
-
+    private lateinit var statusText: TextView
+    private lateinit var recyclerProductos: RecyclerView
     private var deviceIP: String = ""
     private val handler = Handler(Looper.getMainLooper())
-    private val statusUpdateInterval = 5000L // 5 segundos
+    private val statusUpdateInterval = 5000L // 5 seconds
 
-    // Bluetooth
     private var bluetoothSocket: BluetoothSocket? = null
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
 
@@ -46,11 +39,8 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        tvIp = findViewById(R.id.tvIp)
-        tvEstadoConexion = findViewById(R.id.tvEstadoConexion)
-        btnConectar = findViewById(R.id.btnConectar)
-        btnActualizar = findViewById(R.id.btnActualizar)
-        rvProductos = findViewById(R.id.rvProductos)
+        statusText = findViewById(R.id.textEstadoESP32)
+        recyclerProductos = findViewById(R.id.recyclerProductos)
 
         checkAndRequestPermissions()
 
@@ -58,7 +48,6 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
         if (deviceIP.isEmpty()) {
             deviceIP = readIpFromAssets()
         }
-
         if (deviceIP.isEmpty()) {
             scanNetworkForESP32()
         } else {
@@ -66,27 +55,18 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
             startPeriodicStatusUpdate()
         }
 
-        btnConectar.setOnClickListener {
-            connectToESP32Bluetooth()
-        }
-
-        btnActualizar.setOnClickListener {
-            fetchStatusFromESP32()
-        }
-
+        connectToESP32Bluetooth()
         inicializarCatalogo()
-        actualizarEstadoConexion(false)
-        actualizarIPUI()
     }
 
     private fun inicializarCatalogo() {
         val productos = listOf(
-            Producto("Coca Cola", "CMD_COCA", R.drawable.refresco_coca),
-            Producto("Pepsi", "CMD_PEPSI", R.drawable.refresco_pepsi),
-            Producto("Agua", "CMD_AGUA", R.drawable.agua)
+            Producto("Coca Cola", "CMD_COCA", R.drawable.refresco_coca, "$20"),
+            Producto("Pepsi", "CMD_PEPSI", R.drawable.refresco_pepsi, "$18"),
+            Producto("Agua", "CMD_AGUA", R.drawable.agua, "$15")
         )
-        rvProductos.layoutManager = LinearLayoutManager(this)
-        rvProductos.adapter = ProductoAdapter(productos, this)
+        recyclerProductos.layoutManager = LinearLayoutManager(this)
+        recyclerProductos.adapter = ProductoAdapter(productos, this)
     }
 
     override fun onProductoClick(comando: String) {
@@ -141,7 +121,6 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
                 }
                 return@Thread
             }
-
             var foundIP = ""
             for (i in 1..254) {
                 val testIP = "$subnet.$i"
@@ -161,14 +140,13 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
                 } catch (_: Exception) {
                 }
             }
-
             runOnUiThread {
                 if (foundIP.isNotEmpty()) {
                     deviceIP = foundIP
                     saveIPToPreferences(foundIP)
                     Toast.makeText(this, "ESP32 encontrado en: $deviceIP", Toast.LENGTH_LONG).show()
+                    statusText.text = "Estado: Buscando..."
                     startPeriodicStatusUpdate()
-                    actualizarIPUI()
                 } else {
                     Toast.makeText(this, "No se encontró ESP32 en la red", Toast.LENGTH_LONG).show()
                 }
@@ -207,8 +185,7 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
             try {
                 if (deviceIP.isEmpty()) {
                     runOnUiThread {
-                        tvEstadoConexion.text = "IP no configurada"
-                        actualizarEstadoConexion(false)
+                        statusText.text = "IP no configurada"
                     }
                     return@Thread
                 }
@@ -218,14 +195,12 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
                 conn.readTimeout = 3000
                 val response = conn.inputStream.bufferedReader().readText()
                 runOnUiThread {
-                    tvEstadoConexion.text = "Estado: $response"
-                    actualizarEstadoConexion(true)
+                    statusText.text = "Estado: $response"
                 }
                 conn.disconnect()
             } catch (e: Exception) {
                 runOnUiThread {
-                    tvEstadoConexion.text = "Error al obtener estado"
-                    actualizarEstadoConexion(false)
+                    statusText.text = "Error al obtener estado"
                 }
             }
         }.start()
@@ -290,7 +265,7 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
     private fun connectToESP32Bluetooth() {
         if (bluetoothAdapter == null) {
             runOnUiThread {
-                tvEstadoConexion.text = "Bluetooth no disponible"
+                statusText.text = "Bluetooth no disponible"
             }
             return
         }
@@ -300,11 +275,9 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
             }
             return
         }
-
         val device: BluetoothDevice? = bluetoothAdapter
             .bondedDevices
             .firstOrNull { it.name.contains("ESP32", ignoreCase = true) }
-
         if (device != null) {
             Thread {
                 try {
@@ -314,34 +287,13 @@ class MainActivity : AppCompatActivity(), ProductoAdapter.OnProductoClickListene
                     bluetoothSocket?.connect()
                     runOnUiThread {
                         Toast.makeText(this, "Conectado por Bluetooth", Toast.LENGTH_SHORT).show()
-                        actualizarEstadoConexion(true)
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
                         Toast.makeText(this, "Error conectando por Bluetooth", Toast.LENGTH_SHORT).show()
-                        actualizarEstadoConexion(false)
                     }
                 }
             }.start()
-        } else {
-            runOnUiThread {
-                Toast.makeText(this, "No se encontró dispositivo Bluetooth ESP32 emparejado", Toast.LENGTH_SHORT).show()
-            }
-            actualizarEstadoConexion(false)
         }
-    }
-
-    private fun actualizarEstadoConexion(conectado: Boolean) {
-        if (conectado) {
-            tvEstadoConexion.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
-            tvEstadoConexion.text = "Conectado"
-        } else {
-            tvEstadoConexion.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
-            tvEstadoConexion.text = "Desconectado"
-        }
-    }
-
-    private fun actualizarIPUI() {
-        tvIp.text = "IP: $deviceIP"
     }
 }

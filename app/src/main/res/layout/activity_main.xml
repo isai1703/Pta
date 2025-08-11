@@ -1,60 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context=".MainActivity">
+    android:padding="16dp">
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/textEstadoESP32"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="8dp">
-
-        <TextView
-            android:id="@+id/tvIp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="IP: 0.0.0.0"
-            android:textSize="16sp"
-            android:layout_weight="1" />
-
-        <TextView
-            android:id="@+id/tvEstadoConexion"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Desconectado"
-            android:textColor="@android:color/holo_red_dark"
-            android:textSize="16sp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:padding="8dp">
-
-        <Button
-            android:id="@+id/btnConectar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Conectar" />
-
-        <Button
-            android:id="@+id/btnActualizar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Actualizar"
-            android:layout_marginStart="8dp" />
-    </LinearLayout>
+        android:text="Estado: Desconocido"
+        android:textSize="18sp"
+        android:padding="8dp"
+        android:textColor="@android:color/black" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvProductos"
+        android:id="@+id/recyclerProductos"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        tools:listitem="@layout/item_producto" />
+        android:paddingTop="8dp" />
 
 </LinearLayout>
