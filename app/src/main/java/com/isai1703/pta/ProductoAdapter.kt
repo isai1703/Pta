@@ -10,16 +10,12 @@ import androidx.recyclerview.widget.RecyclerView
 
 class ProductoAdapter(
     private val productos: List<Producto>,
-    private val onProductoClick: OnProductoClickListener
+    private val onClick: (String) -> Unit
 ) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
 
-    interface OnProductoClickListener {
-        fun onProductoClick(comando: String)
-    }
-
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_producto, parent, false)
-        return ProductoViewHolder(view)
+        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_producto, parent, false)
+        return ProductoViewHolder(v)
     }
 
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
@@ -29,18 +25,16 @@ class ProductoAdapter(
     override fun getItemCount(): Int = productos.size
 
     inner class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val imgProducto: ImageView = itemView.findViewById(R.id.producto_imagen)
-        private val tvNombreProducto: TextView = itemView.findViewById(R.id.producto_nombre)
-        private val tvPrecioProducto: TextView = itemView.findViewById(R.id.producto_precio)
-        private val btnComprar: Button = itemView.findViewById(R.id.boton_enviar)
+        private val img: ImageView = itemView.findViewById(R.id.producto_imagen)
+        private val tvNombre: TextView = itemView.findViewById(R.id.producto_nombre)
+        private val tvPrecio: TextView = itemView.findViewById(R.id.producto_precio)
+        private val btnEnviar: Button = itemView.findViewById(R.id.boton_enviar)
 
-        fun bind(producto: Producto) {
-            imgProducto.setImageResource(producto.imagenResId)
-            tvNombreProducto.text = producto.nombre
-            tvPrecioProducto.text = producto.precio
-            btnComprar.setOnClickListener {
-                onProductoClick.onProductoClick(producto.comando)
-            }
+        fun bind(p: Producto) {
+            img.setImageResource(p.imagenResId)
+            tvNombre.text = p.nombre
+            tvPrecio.text = p.precio
+            btnEnviar.setOnClickListener { onClick(p.comando) }
         }
     }
 }
