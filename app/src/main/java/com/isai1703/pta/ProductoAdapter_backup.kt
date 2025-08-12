@@ -1,0 +1,41 @@
+package com.isai1703.pta
+
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+
+class ProductoAdapter(
+    private val productos: List<Producto>,
+    private val onProductoClick: (Producto) -> Unit
+) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_producto, parent, false)
+        return ProductoViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
+        holder.bind(productos[position])
+    }
+
+    override fun getItemCount(): Int = productos.size
+
+    inner class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val imagenProducto: ImageView = itemView.findViewById(R.id.imagenProducto)
+        private val nombreProducto: TextView = itemView.findViewById(R.id.nombreProducto)
+        private val btnEnviarComando: Button = itemView.findViewById(R.id.btnEnviarComando)
+
+        fun bind(producto: Producto) {
+            imagenProducto.setImageResource(producto.imagenResId)
+            nombreProducto.text = producto.nombre
+            btnEnviarComando.setOnClickListener {
+                onProductoClick(producto)
+            }
+        }
+    }
+}
