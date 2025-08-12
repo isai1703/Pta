@@ -68,7 +68,7 @@ class MainActivity : AppCompatActivity() {
 
     private val btPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
+    ) { _permissions ->
         // No hacemos nada complejo aquí — el usuario debe conceder para Bluetooth
     }
 
