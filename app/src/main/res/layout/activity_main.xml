@@ -1,41 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/layout_main"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    tools:context=".MainActivity">
 
+    <!-- Título -->
     <TextView
-        android:id="@+id/statusTextView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Estado: Desconocido"
-        android:textSize="18sp"
-        android:padding="8dp"
-        android:textColor="@android:color/black" />
-
-    <ImageView
-        android:id="@+id/connectionIcon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_gravity="center_horizontal"
-        android:padding="8dp"
-        android:src="@drawable/ic_disconnected" />
-
-    <Button
-        android:id="@+id/conectarBtn"
+        android:id="@+id/tvTitulo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Conectar"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="12dp" />
+        android:text="Estado de conexión"
+        android:textSize="20sp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="20dp"
+        android:textStyle="bold" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingTop="8dp" />
+    <!-- Icono de conexión -->
+    <ImageView
+        android:id="@+id/imgEstadoConexion"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_below="@id/tvTitulo"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:src="@drawable/ic_disconnected" />
 
-</LinearLayout>
+    <!-- Texto con la IP -->
+    <TextView
+        android:id="@+id/tvIp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/imgEstadoConexion"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="8dp"
+        android:text="IP: ---"
+        android:textSize="16sp" />
+
+    <!-- Botón Conectar -->
+    <Button
+        android:id="@+id/btnConectar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvIp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:text="Conectar" />
+
+</RelativeLayout>
