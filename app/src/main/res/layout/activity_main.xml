@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/layout_main"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -10,58 +10,51 @@
         android:id="@+id/statusTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Estado: Desconocido"
+        android:text="Estado"
         android:textSize="18sp"
-        android:textStyle="bold" />
+        android:textColor="@color/black"/>
 
-    <LinearLayout
+    <ImageView
+        android:id="@+id/connectionIcon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_disconnected"/>
+
+    <TextView
+        android:id="@+id/tvIp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="IP: ---"
+        android:textSize="16sp"/>
+
+    <Button
+        android:id="@+id/btnConectar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="8dp"
-        android:gravity="center_vertical">
+        android:text="Conectar"/>
 
-        <ImageView
-            android:id="@+id/connectionIcon"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@drawable/ic_disconnected"
-            android:contentDescription="Estado de conexión" />
-
-        <TextView
-            android:id="@+id/tvIp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="IP: ---"
-            android:layout_marginStart="12dp" />
-
-        <Button
-            android:id="@+id/btnEditarIp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Editar IP"
-            android:layout_marginStart="12dp" />
-
-        <Button
-            android:id="@+id/btnConectar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Conectar"
-            android:layout_marginStart="8dp" />
-
-    </LinearLayout>
-
-    <View
+    <Button
+        android:id="@+id/btnEditarIp"
         android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#DDD"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp" />
+        android:layout_height="wrap_content"
+        android:text="Editar IP"/>
+
+    <Button
+        android:id="@+id/btnScanIp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Buscar ESP32"/>
+
+    <Button
+        android:id="@+id/btnEnviarATodos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enviar a todos"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1"/>
 
 </LinearLayout>

@@ -7,11 +7,8 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.DialogInterface
-import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -26,8 +23,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -41,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val PREFS = "pta_prefs"
         private const val PREF_IP = "esp32_ip"
+        private const val PREF_COMMAND_HISTORY = "command_history"
         private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
     }
 
@@ -49,6 +45,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvIp: TextView
     private lateinit var btnConectar: Button
     private lateinit var btnEditarIp: Button
+    private lateinit var btnScanIp: Button
+    private lateinit var btnEnviarATodos: Button
     private lateinit var recyclerView: RecyclerView
 
     private lateinit var prefs: SharedPreferences
@@ -68,41 +66,69 @@ class MainActivity : AppCompatActivity() {
 
     private val btPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { _ ->
-        // No hacemos nada complejo aquí — el usuario debe conceder para Bluetooth
-    }
+    ) { _permissions -> }
+
+    private val commandHistory = mutableListOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // UI
         statusTextView = findViewById(R.id.statusTextView)
         connectionIcon = findViewById(R.id.connectionIcon)
         tvIp = findViewById(R.id.tvIp)
         btnConectar = findViewById(R.id.btnConectar)
         btnEditarIp = findViewById(R.id.btnEditarIp)
+        btnScanIp = findViewById(R.id.btnScanIp)
+        btnEnviarATodos = findViewById(R.id.btnEnviarATodos)
         recyclerView = findViewById(R.id.recyclerView)
 
         prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        esp32Ip = prefs.getString(PREF_IP, null) ?: readIpFromAssets()
+        esp32Ip = prefs.getString(PREF_IP, null)
         tvIp.text = "IP: ${esp32Ip ?: "---"}"
 
-        // Recycler + productos (ajusta imágenes/comandos reales)
+        val historyStr = prefs.getString(PREF_COMMAND_HISTORY, "")
+        if (!historyStr.isNullOrEmpty()) {
+            commandHistory.addAll(historyStr.split(";"))
+        }
+
+        // Lista completa de productos con todas las imágenes que tienes
         val productos = listOf(
-            Producto("Coca Cola", R.drawable.coca, "CMD_COCA", "$15"),
+            Producto("Coca Cola", R.drawable.cocacola, "CMD_COCA", "$15"),
             Producto("Pepsi", R.drawable.pepsi, "CMD_PEPSI", "$15"),
-            Producto("Agua", R.drawable.agua, "CMD_AGUA", "$10")
+            Producto("Agua", R.drawable.agua, "CMD_AGUA", "$10"),
+            Producto("Paleta", R.drawable.paleta, "CMD_PALETA", "$5"),
+            Producto("Arizona", R.drawable.arizona, "CMD_ARIZONA", "$20"),
+            Producto("Palomitas", R.drawable.palomitas, "CMD_PALOMITAS", "$25"),
+            Producto("Chocolate", R.drawable.chocolate, "CMD_CHOCOLATE", "$12"),
+            Producto("Papaaas", R.drawable.papaaas, "CMD_PAPAAAS", "$18"),
+            Producto("Chocolate Kinder", R.drawable.chocolatekinder, "CMD_CHOCKINDER", "$15"),
+            Producto("Papaas", R.drawable.papaas, "CMD_PAPAAS", "$18"),
+            Producto("Chocolate KitKat", R.drawable.chocolatekitkat, "CMD_KITKAT", "$15"),
+            Producto("Papas", R.drawable.papas, "CMD_PAPAS", "$12"),
+            Producto("Chocolate M&M's", R.drawable.chocolatemms, "CMD_MMS", "$15"),
+            Producto("Papass", R.drawable.papass, "CMD_PAPASS", "$18"),
+            Producto("Penafiel", R.drawable.penafiel, "CMD_PENA", "$10"),
+            Producto("Galletas", R.drawable.galletas, "CMD_GALLETA", "$8"),
+            Producto("Galletas Barritas Fre", R.drawable.galletasbarritasfre, "CMD_BARFRE", "$10"),
+            Producto("Galletas Principe", R.drawable.galletasprincipe, "CMD_PRINCIPE", "$12"),
+            Producto("Volt", R.drawable.volt, "CMD_VOLT", "$22"),
+            Producto("Volt B", R.drawable.voltb, "CMD_VOLTB", "$22"),
+            Producto("Jugo", R.drawable.jugo, "CMD_JUGO", "$15"),
+            Producto("Yogurt", R.drawable.yogurt, "CMD_YOGURT", "$18")
         )
+
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = ProductoAdapter(productos) { comando -> sendCommand(comando) }
 
         btnConectar.setOnClickListener { connectNow() }
         btnEditarIp.setOnClickListener { showEditIpDialog() }
+        btnScanIp.setOnClickListener { scanForEsp32InNetwork() }
+        btnEnviarATodos.setOnClickListener {
+            productos.forEach { sendCommand(it.comando) }
+        }
 
         requestBluetoothPermissionsIfNeeded()
-
-        // Revisar conexiones periódicamente (cada 8s)
         scheduler.scheduleWithFixedDelay({ checkConnections() }, 0, 8, TimeUnit.SECONDS)
     }
 
@@ -111,30 +137,21 @@ class MainActivity : AppCompatActivity() {
         try {
             scheduler.shutdownNow()
             executor.shutdownNow()
-        } catch (e: Exception) { /* ignore */ }
+        } catch (e: Exception) { }
     }
 
-    // ----------------- Permisos -----------------
     private fun requestBluetoothPermissionsIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            btPermissionLauncher.launch(arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT))
+            btPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                )
+            )
         } else {
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 111)
             }
-        }
-    }
-
-    // ----------------- IP prefs / UI -----------------
-    private fun readIpFromAssets(): String? {
-        return try {
-            assets.open("config.txt").use { stream ->
-                BufferedReader(InputStreamReader(stream)).use { reader ->
-                    reader.readLine()?.trim()
-                }
-            }
-        } catch (e: Exception) {
-            null
         }
     }
 
@@ -158,29 +175,18 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    // ----------------- Connectivity checks -----------------
     private fun checkConnections() {
         try {
-            // 1) Intentar WiFi (si IP definida)
             val ip = esp32Ip
             if (!ip.isNullOrEmpty()) {
                 val ok = tryPingHttp(ip)
                 connectedWifi = ok
-                if (ok) {
-                    connectedBluetooth = false
-                    updateUi()
-                    return
-                }
-            } else {
-                connectedWifi = false
-            }
+                if (ok) { connectedBluetooth = false; updateUi(); return }
+            } else { connectedWifi = false }
 
-            // 2) Intentar Bluetooth (si adaptador y emparejados)
             connectedBluetooth = checkPairedEsp32()
             updateUi()
-        } catch (e: Exception) {
-            updateUi()
-        }
+        } catch (e: Exception) { updateUi() }
     }
 
     private fun updateUi() {
@@ -189,14 +195,17 @@ class MainActivity : AppCompatActivity() {
                 connectedWifi -> {
                     connectionIcon.setImageResource(R.drawable.ic_connected)
                     statusTextView.text = "Conectado por WiFi"
+                    statusTextView.setTextColor(getColor(R.color.green))
                 }
                 connectedBluetooth -> {
                     connectionIcon.setImageResource(R.drawable.ic_connected)
                     statusTextView.text = "Conectado por Bluetooth"
+                    statusTextView.setTextColor(getColor(R.color.green))
                 }
                 else -> {
                     connectionIcon.setImageResource(R.drawable.ic_disconnected)
                     statusTextView.text = "Desconectado"
+                    statusTextView.setTextColor(getColor(R.color.red))
                 }
             }
         }
@@ -213,12 +222,9 @@ class MainActivity : AppCompatActivity() {
             val code = conn.responseCode
             conn.disconnect()
             code in 200..399
-        } catch (e: Exception) {
-            false
-        }
+        } catch (e: Exception) { false }
     }
 
-    // ----------------- Bluetooth helpers -----------------
     @SuppressLint("MissingPermission")
     private fun checkPairedEsp32(): Boolean {
         val adapter = bluetoothAdapter ?: return false
@@ -229,7 +235,6 @@ class MainActivity : AppCompatActivity() {
         return device != null
     }
 
-    // Try connect now (first WiFi then Bluetooth)
     private fun connectNow() {
         executor.execute {
             try {
@@ -242,15 +247,15 @@ class MainActivity : AppCompatActivity() {
                     updateUi()
                     return@execute
                 }
-                // Bluetooth attempt (simple)
+
                 if (checkPairedEsp32() && btDevice != null) {
-                    // Note: here we don't keep persistent socket; this is a simple check
                     connectedBluetooth = true
                     connectedWifi = false
                     runOnUiThread { Toast.makeText(this, "ESP32 emparejado (Bluetooth)", Toast.LENGTH_SHORT).show() }
                     updateUi()
                     return@execute
                 }
+
                 connectedWifi = false
                 connectedBluetooth = false
                 updateUi()
@@ -262,30 +267,35 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ----------------- Send command (WiFi preferred) -----------------
     private fun sendCommand(comando: String) {
         executor.execute {
             try {
                 val ip = esp32Ip
                 if (!ip.isNullOrEmpty() && connectedWifi) {
                     val ok = sendCommandWifi(ip, comando)
-                    runOnUiThread {
-                        Toast.makeText(this, if (ok) "Comando enviado (WiFi)" else "Error WiFi", Toast.LENGTH_SHORT).show()
-                    }
+                    if (ok) addToHistory(comando)
+                    runOnUiThread { Toast.makeText(this, if (ok) "Comando enviado (WiFi)" else "Error WiFi", Toast.LENGTH_SHORT).show() }
                     return@execute
                 }
+
                 if (connectedBluetooth && btDevice != null) {
                     val ok = sendCommandBluetooth(btDevice!!, comando)
-                    runOnUiThread {
-                        Toast.makeText(this, if (ok) "Comando enviado (Bluetooth)" else "Error Bluetooth", Toast.LENGTH_SHORT).show()
-                    }
+                    if (ok) addToHistory(comando)
+                    runOnUiThread { Toast.makeText(this, if (ok) "Comando enviado (Bluetooth)" else "Error Bluetooth", Toast.LENGTH_SHORT).show() }
                     return@execute
                 }
+
                 runOnUiThread { Toast.makeText(this, "No hay conexión", Toast.LENGTH_SHORT).show() }
             } catch (e: Exception) {
                 runOnUiThread { Toast.makeText(this, "Error enviando comando", Toast.LENGTH_SHORT).show() }
             }
         }
+    }
+
+    private fun addToHistory(comando: String) {
+        val entry = "${System.currentTimeMillis()}: $comando"
+        commandHistory.add(entry)
+        prefs.edit().putString(PREF_COMMAND_HISTORY, commandHistory.joinToString(";")).apply()
     }
 
     private fun sendCommandWifi(ip: String, comando: String): Boolean {
@@ -298,9 +308,7 @@ class MainActivity : AppCompatActivity() {
             val code = conn.responseCode
             conn.disconnect()
             code in 200..399
-        } catch (e: Exception) {
-            false
-        }
+        } catch (e: Exception) { false }
     }
 
     @SuppressLint("MissingPermission")
@@ -313,8 +321,22 @@ class MainActivity : AppCompatActivity() {
             out?.flush()
             socket.close()
             true
-        } catch (e: Exception) {
-            false
+        } catch (e: Exception) { false }
+    }
+
+    private fun scanForEsp32InNetwork() {
+        executor.execute {
+            val baseIp = esp32Ip?.substringBeforeLast('.') ?: "192.168.1"
+            var foundIp: String? = null
+            for (i in 1..254) {
+                val testIp = "$baseIp.$i"
+                if (tryPingHttp(testIp)) { foundIp = testIp; break }
+            }
+            foundIp?.let {
+                saveIp(it)
+                runOnUiThread { Toast.makeText(this, "ESP32 encontrado en IP: $it", Toast.LENGTH_LONG).show() }
+                checkConnections()
+            }
         }
     }
 }
