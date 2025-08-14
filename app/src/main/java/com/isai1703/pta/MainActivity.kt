@@ -1,272 +1,147 @@
 package com.isai1703.pta
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.content.Context
-import android.content.SharedPreferences
-import android.os.Build
+import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.TextView
+import android.view.LayoutInflater
+import android.widget.ArrayAdapter
+import android.widget.ListView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import kotlinx.coroutines.*
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.Socket
+
+data class TipoDispositivo(
+    val nombre: String,
+    val tipo: String,
+    val direccion: String,
+    val conexion: String
+)
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var rvDispositivos: RecyclerView
-    private lateinit var rvProductos: RecyclerView
-    private lateinit var btnEscanear: Button
-    private lateinit var btnEnviarTodos: Button
-    private lateinit var iconoEstadoGeneral: ImageView
-
-    private val dispositivos = mutableListOf<Device>()
-    private val deviceAdapter by lazy { DeviceAdapter(dispositivos) { d -> onConnectDevice(d) } }
-
-    private val productos = mutableListOf<Producto>()
-    private val productosAdapter by lazy { ProductoAdapter(productos) { p -> onSendProduct(p) } }
-
-    private lateinit var sharedPreferences: SharedPreferences
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val ui = Handler(Looper.getMainLooper())
-
-    private val reScanMs = 15000L
+    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    private val dispositivosCompatibles = mutableListOf<TipoDispositivo>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        PermissionsHelper.ensure(this)
-
-        sharedPreferences = getSharedPreferences("Historial", Context.MODE_PRIVATE)
-
-        rvDispositivos = findViewById(R.id.rvDispositivos)
-        rvProductos = findViewById(R.id.rvProductos)
-        btnEscanear = findViewById(R.id.btnEscanear)
-        btnEnviarTodos = findViewById(R.id.btnEnviarTodos)
-        iconoEstadoGeneral = findViewById(R.id.iconoEstadoGeneral)
-
-        rvDispositivos.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
-        rvDispositivos.adapter = deviceAdapter
-
-        rvProductos.layoutManager = LinearLayoutManager(this)
-        rvProductos.adapter = productosAdapter
-
-        initProductosDesdeDrawables()
-        autoScanLoop()
-
-        btnEscanear.setOnClickListener { scanAll() }
-        btnEnviarTodos.setOnClickListener { enviarATodos() }
+        checkPermissions()
+        scanBluetoothDevices()
+        scanWifiDevices()
     }
 
-    private fun autoScanLoop() {
-        scanAll()
-        ui.postDelayed({ autoScanLoop() }, reScanMs)
-    }
-
-    private fun scanAll() {
-        scope.launch {
-            val list = mutableListOf<Device>()
-            // --- Escaneo WiFi ---
-            val ipLocal = NetworkUtils.localIPv4(this@MainActivity) ?: "192.168.1.100"
-            val candidatos = NetworkUtils.subnetCandidates(ipLocal)
-            val portsToCheck = listOf(80, 502, 1883, 22) // HTTP, Modbus, MQTT, SSH
-            val jobs = candidatos.map { host ->
-                async {
-                    for (p in portsToCheck) {
-                        if (NetworkUtils.isTcpOpen(host, p, 150)) {
-                            val tipo = classifyByPort(host, p)
-                            val nombre = "${tipo.name} @ $host:$p"
-                            return@async Device(nombre = nombre, address = host, tipo = tipo, conectado = false)
-                        }
-                    }
-                    null
-                }
-            }
-            val found = jobs.awaitAll().filterNotNull()
-            list.addAll(found.distinctBy { it.address })
-
-            // --- Escaneo Bluetooth (emparejados) ---
-            try {
-                val bt = BluetoothAdapter.getDefaultAdapter()
-                if (bt != null && (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) == 0)) {
-                    bt.bondedDevices?.forEach { dev ->
-                        val tipo = classifyBluetooth(dev)
-                        list.add(Device(nombre = dev.name ?: "BT", address = dev.address, tipo = tipo, conectado = false))
-                    }
-                }
-            } catch (_: Exception) {}
-
-            withContext(Dispatchers.Main) {
-                deviceAdapter.replaceAll(list)
-                // Conexión automática al primero compatible
-                list.firstOrNull { it.tipo != TipoDispositivo.DESCONOCIDO }?.let { auto ->
-                    onConnectDevice(auto)
-                }
-            }
-        }
-    }
-
-    private fun classifyByPort(host: String, port: Int): TipoDispositivo {
-        return when (port) {
-            80 -> {
-                // Intento de leer cabecera rápida para distinguir ESP32 vs web genérica
-                try {
-                    val url = URL("http://$host/")
-                    (url.openConnection() as HttpURLConnection).apply {
-                        connectTimeout = 250
-                        readTimeout = 250
-                        requestMethod = "GET"
-                        inputStream.use { ins ->
-                            val first = BufferedReader(InputStreamReader(ins)).readLine() ?: ""
-                            return if (first.contains("ESP", true) || first.contains("Arduino", true)) TipoDispositivo.ESP32 else TipoDispositivo.MINIPC
-                        }
-                    }
-                } catch (_: Exception) {
-                    TipoDispositivo.MINIPC
-                }
-            }
-            22 -> TipoDispositivo.RASPBERRY   // SSH muy común en Pi
-            1883 -> TipoDispositivo.MINIPC    // Broker MQTT suele correr en SBC/PC
-            502 -> TipoDispositivo.STM32      // Modbus/TCP (típico PLC/MCU)
-            else -> TipoDispositivo.DESCONOCIDO
-        }
-    }
-
-    private fun classifyBluetooth(dev: BluetoothDevice): TipoDispositivo {
-        val n = (dev.name ?: "").lowercase()
-        return when {
-            "esp32" in n || "esp" in n   -> TipoDispositivo.ESP32
-            "rasp" in n || "pi" in n     -> TipoDispositivo.RASPBERRY
-            "stm" in n                   -> TipoDispositivo.STM32
-            else                         -> TipoDispositivo.DESCONOCIDO
-        }
-    }
-
-    private fun onConnectDevice(d: Device) {
-        // Selección de protocolo simple por tipo
-        scope.launch {
-            val ok = when (d.tipo) {
-                TipoDispositivo.ESP32, TipoDispositivo.MINIPC, TipoDispositivo.RASPBERRY -> testHttp(d.address)
-                TipoDispositivo.STM32 -> testTcp(d.address, 502)
-                else -> false
-            }
-            withContext(Dispatchers.Main) {
-                deviceAdapter.markConnected(d.address, ok)
-                iconoEstadoGeneral.setImageResource(if (ok) R.drawable.ic_connected else R.drawable.ic_disconnected)
-                Toast.makeText(this@MainActivity, if (ok) "Conectado a ${d.nombre}" else "No se pudo conectar a ${d.nombre}", Toast.LENGTH_SHORT).show()
-                if (ok) savePreferredAddress(d.address)
-            }
-        }
-    }
-
-    private fun onSendProduct(p: Producto) {
-        // Enviar comando al dispositivo preferido si existe; si no, a todos los conectados HTTP
-        val dest = getPreferredAddress()
-        if (dest != null) {
-            sendCommandWifi("COMANDO_${p.id}", dest)
-        } else {
-            dispositivos.filter { it.conectado }.forEach { sendCommandWifi("COMANDO_${p.id}", it.address) }
-        }
-        saveHistorial(p)
-        Toast.makeText(this, "Comando enviado: ${p.nombre}", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun enviarATodos() {
-        productos.forEach { onSendProduct(it) }
-    }
-
-    // --- Utilidades de conexión ---
-    private fun testHttp(host: String): Boolean {
-        return try {
-            val url = URL("http://$host/")
-            (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 500
-                readTimeout = 500
-                requestMethod = "GET"
-                inputStream.use { /* ok */ }
-            }
-            true
-        } catch (_: Exception) { false }
-    }
-
-    private fun testTcp(host: String, port: Int): Boolean {
-        return NetworkUtils.isTcpOpen(host, port, 300)
-    }
-
-    private fun sendCommandWifi(command: String, host: String) {
-        // Ejemplo genérico: GET /cmd?c=...
-        try {
-            val url = URL("http://$host/cmd?c=$command")
-            (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 800
-                readTimeout = 1000
-                requestMethod = "GET"
-                inputStream.close()
-            }
-        } catch (_: Exception) { }
-    }
-
-    // --- Historial y preferencia de destino ---
-    private fun saveHistorial(p: Producto) {
-        val sp = getSharedPreferences("Historial", Context.MODE_PRIVATE)
-        val set = sp.getStringSet("historial", mutableSetOf()) ?: mutableSetOf()
-        set.add("${p.nombre} - ${System.currentTimeMillis()}")
-        sp.edit().putStringSet("historial", set).apply()
-    }
-
-    private fun savePreferredAddress(address: String) {
-        val sp = getSharedPreferences("Prefs", Context.MODE_PRIVATE)
-        sp.edit().putString("preferred_host", address).apply()
-    }
-
-    private fun getPreferredAddress(): String? {
-        val sp = getSharedPreferences("Prefs", Context.MODE_PRIVATE)
-        return sp.getString("preferred_host", null)
-    }
-
-    // --- Carga de productos usando drawables existentes (si están) ---
-    private fun initProductosDesdeDrawables() {
-        productos.clear()
-        val ctx = this
-        fun id(name: String): Int = ctx.resources.getIdentifier(name, "drawable", ctx.packageName)
-        val candidatos = listOf(
-            "agua","cocacola","pepsi","galletas","galletasprincipe","galletasbarritasfre",
-            "chocolate","chocolatekinder","chocolatekitkat","chocolatemms",
-            "palomitas","papas","papaas","papass","papaaas",
-            "jugo","jugoo","yogurt","arizona","penafiel","penafieel","penafiiel",
-            "sopamaruhaba","volt","voltb","dulceskwinkles"
+    private fun checkPermissions() {
+        val permissions = arrayOf(
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.INTERNET
         )
-        var idx = 1
-        candidatos.forEach { n ->
-            val res = id(n)
-            if (res != 0) {
-                productos.add(Producto(idx++, n.replaceFirstChar { it.uppercase() }, res, disponible = true))
-            }
+        val missing = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
-        if (productos.isEmpty()) {
-            // Fallback si no hay imágenes: al menos 3
-            val fallback = listOf(
-                Producto(1, "Producto A", R.drawable.ic_producto, true),
-                Producto(2, "Producto B", R.drawable.ic_producto, true),
-                Producto(3, "Producto C", R.drawable.ic_producto, false)
-            )
-            productos.addAll(fallback)
+        if (missing.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, missing.toTypedArray(), 1)
         }
-        productosAdapter.notifyDataSetChanged()
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        scope.cancel()
+    @SuppressLint("MissingPermission")
+    private fun scanBluetoothDevices() {
+        if (bluetoothAdapter == null) {
+            Toast.makeText(this, "Bluetooth no soportado", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (!bluetoothAdapter.isEnabled) bluetoothAdapter.enable()
+
+        val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter.bondedDevices
+        pairedDevices?.forEach { device ->
+            if (isCompatibleBluetooth(device)) {
+                dispositivosCompatibles.add(
+                    TipoDispositivo(
+                        nombre = device.name ?: device.address,
+                        tipo = "Bluetooth",
+                        direccion = device.address,
+                        conexion = "Bluetooth"
+                    )
+                )
+            }
+        }
+        if (dispositivosCompatibles.isNotEmpty()) showDeviceListDialog()
+    }
+
+    private fun isCompatibleBluetooth(device: BluetoothDevice): Boolean {
+        val name = device.name?.lowercase() ?: ""
+        return name.contains("esp32") || name.contains("raspberry") ||
+               name.contains("stm32") || name.contains("pta-device")
+    }
+
+    private fun scanWifiDevices() {
+        # Ejemplo placeholder, agrega tus IPs escaneadas
+        # dispositivosCompatibles.add(TipoDispositivo("ESP32 WiFi", "WiFi", "192.168.1.50", "WiFi"))
+    }
+
+    private fun showDeviceListDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_device_list, null)
+        val listView: ListView = dialogView.findViewById(R.id.deviceListView)
+        val adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_list_item_1,
+            dispositivosCompatibles.map { "${it.nombre} (${it.tipo})" }
+        )
+        listView.adapter = adapter
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.device_list_title))
+            .setView(dialogView)
+            .setNegativeButton(getString(R.string.cancel), null)
+            .create()
+
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val dispositivo = dispositivosCompatibles[position]
+            connectToDevice(dispositivo)
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun connectToDevice(dispositivo: TipoDispositivo) {
+        Toast.makeText(this, "Conectando a ${dispositivo.nombre}...", Toast.LENGTH_SHORT).show()
+        when (dispositivo.conexion) {
+            "Bluetooth" -> connectBluetooth(dispositivo.direccion)
+            "WiFi" -> connectWifi(dispositivo.direccion)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun connectBluetooth(macAddress: String) {
+        Toast.makeText(this, "Conectado vía Bluetooth: $macAddress", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun connectWifi(ip: String, port: Int = 80) {
+        Thread {
+            try {
+                val socket = Socket()
+                socket.connect(InetSocketAddress(ip, port), 2000)
+                runOnUiThread {
+                    Toast.makeText(this, "Conectado a $ip", Toast.LENGTH_SHORT).show()
+                }
+                socket.close()
+            } catch (e: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this, "Error de conexión WiFi: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }.start()
     }
 }
