@@ -1,62 +1,72 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:padding="8dp">
 
     <TextView
-        android:id="@+id/tvIp"
+        android:id="@+id/tvTituloDispositivos"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="IP de dispositivos"
-        android:textSize="16sp"
-        android:padding="8dp"/>
+        android:text="Dispositivos detectados"
+        android:textSize="18sp"
+        android:padding="4dp" />
 
     <ImageView
-        android:id="@+id/iconoEstado"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:src="@drawable/ic_desconectado"
-        android:layout_below="@id/tvIp"
-        android:layout_marginTop="8dp"
-        android:layout_centerHorizontal="true"/>
-
-    <Button
-        android:id="@+id/btnConectar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Conectar"
-        android:layout_below="@id/iconoEstado"
-        android:layout_marginTop="8dp"
-        android:layout_alignParentStart="true"/>
-
-    <Button
-        android:id="@+id/btnEditarIP"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Editar IP"
-        android:layout_alignTop="@id/btnConectar"
-        android:layout_centerHorizontal="true"/>
-
-    <Button
-        android:id="@+id/btnEscanearIP"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Escanear IP"
-        android:layout_alignTop="@id/btnConectar"
-        android:layout_alignParentEnd="true"/>
-
-    <Button
-        android:id="@+id/btnEnviarTodos"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Enviar a todos"
-        android:layout_below="@id/btnConectar"
-        android:layout_marginTop="8dp"/>
+        android:id="@+id/iconoEstadoGeneral"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:src="@drawable/ic_disconnected"
+        android:layout_gravity="end"
+        android:contentDescription="@string/untitled" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerView"
+        android:id="@+id/rvDispositivos"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/btnEnviarTodos"
-        android:layout_marginTop="8dp"/>
-</RelativeLayout>
+        android:layout_height="140dp"
+        android:paddingBottom="8dp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#dddddd"
+        android:layout_marginVertical="6dp"/>
+
+    <TextView
+        android:id="@+id/tvTituloProductos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Productos"
+        android:textSize="18sp"
+        android:padding="4dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvProductos"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingTop="6dp">
+
+        <Button
+            android:id="@+id/btnEscanear"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Escanear"/>
+
+        <Button
+            android:id="@+id/btnEnviarTodos"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Enviar a todos"
+            android:layout_marginStart="8dp"/>
+    </LinearLayout>
+
+</LinearLayout>

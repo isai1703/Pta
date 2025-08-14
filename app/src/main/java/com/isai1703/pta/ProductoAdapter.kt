@@ -9,28 +9,30 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 class ProductoAdapter(
-    private val productos: List<Producto>,
+    private val items: List<Producto>,
     private val onClick: (Producto) -> Unit
-) : RecyclerView.Adapter<ProductoAdapter.ViewHolder>() {
+) : RecyclerView.Adapter<ProductoAdapter.VH>() {
 
-    inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val nombre: TextView = itemView.findViewById(R.id.tvNombre)
-        val imagen: ImageView = itemView.findViewById(R.id.ivImagen)
-        val btnEnviar: Button = itemView.findViewById(R.id.btnEnviar)
+    inner class VH(v: View): RecyclerView.ViewHolder(v) {
+        val tvNombre: TextView = v.findViewById(R.id.tvNombre)
+        val tvDisponible: TextView = v.findViewById(R.id.tvDisponible)
+        val ivImagen: ImageView = v.findViewById(R.id.ivImagen)
+        val btnEnviar: Button = v.findViewById(R.id.btnEnviar)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_producto, parent, false)
-        return ViewHolder(view)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_producto, parent, false)
+        return VH(v)
     }
 
-    override fun getItemCount(): Int = productos.size
-
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val producto = productos[position]
-        holder.nombre.text = producto.nombre
-        holder.imagen.setImageResource(producto.imagen)
-        holder.btnEnviar.isEnabled = producto.disponible
-        holder.btnEnviar.setOnClickListener { onClick(producto) }
+    override fun onBindViewHolder(h: VH, pos: Int) {
+        val p = items[pos]
+        h.tvNombre.text = p.nombre
+        h.tvDisponible.text = if (p.disponible) "Disponible" else "Agotado"
+        h.ivImagen.setImageResource(p.imagenRes)
+        h.btnEnviar.isEnabled = p.disponible
+        h.btnEnviar.setOnClickListener { onClick(p) }
     }
+
+    override fun getItemCount(): Int = items.size
 }

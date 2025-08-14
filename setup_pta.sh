@@ -1,14 +1,51 @@
 #!/bin/bash
 
-# Carpeta base del proyecto
+# ------------------------
+# Rutas del proyecto
+# ------------------------
 BASE=~/Pta-filtrado/app/src/main/java/com/isai1703/pta
 LAYOUT=~/Pta-filtrado/app/src/main/res/layout
+DRAWABLE=~/Pta-filtrado/app/src/main/res/drawable
 
 # Crear carpetas si no existen
 mkdir -p $BASE
 mkdir -p $LAYOUT
+mkdir -p $DRAWABLE
 
+# ------------------------
+# Crear/Verificar drawables
+# ------------------------
+
+# ic_desconectado
+if [ ! -f $DRAWABLE/ic_desconectado.xml ]; then
+    if [ -f $DRAWABLE/ic_disconnected.xml ]; then
+        cp $DRAWABLE/ic_disconnected.xml $DRAWABLE/ic_desconectado.xml
+    else
+        echo '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#FF0000" android:pathData="M12,2 L12,22 M2,12 L22,12"/></vector>' > $DRAWABLE/ic_desconectado.xml
+    fi
+fi
+
+# ic_conectado
+if [ ! -f $DRAWABLE/ic_conectado.xml ]; then
+    if [ -f $DRAWABLE/ic_connected.xml ]; then
+        cp $DRAWABLE/ic_connected.xml $DRAWABLE/ic_conectado.xml
+    else
+        echo '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#00FF00" android:pathData="M12,2 L12,22 M2,12 L22,12"/></vector>' > $DRAWABLE/ic_conectado.xml
+    fi
+fi
+
+# ic_producto
+if [ ! -f $DRAWABLE/ic_producto.xml ]; then
+    if [ -f $DRAWABLE/agua.jpg ]; then
+        cp $DRAWABLE/agua.jpg $DRAWABLE/ic_producto.jpg
+    else
+        echo '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="60dp" android:height="60dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#0000FF" android:pathData="M4,4 L20,4 L20,20 L4,20 Z"/></vector>' > $DRAWABLE/ic_producto.xml
+    fi
+fi
+
+# ------------------------
 # MainActivity.kt
+# ------------------------
 cat > $BASE/MainActivity.kt << 'EOF'
 package com.isai1703.pta
 
@@ -186,7 +223,9 @@ data class Dispositivo(val ip: String, val tipo: TipoDispositivo)
 enum class TipoDispositivo { ESP32, RASPBERRY, MINIPC, DESCONOCIDO }
 EOF
 
+# ------------------------
 # Producto.kt
+# ------------------------
 cat > $BASE/Producto.kt << 'EOF'
 package com.isai1703.pta
 
@@ -198,7 +237,9 @@ data class Producto(
 )
 EOF
 
+# ------------------------
 # ProductoAdapter.kt
+# ------------------------
 cat > $BASE/ProductoAdapter.kt << 'EOF'
 package com.isai1703.pta
 
@@ -238,7 +279,9 @@ class ProductoAdapter(
 }
 EOF
 
+# ------------------------
 # activity_main.xml
+# ------------------------
 cat > $LAYOUT/activity_main.xml << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -276,35 +319,40 @@ cat > $LAYOUT/activity_main.xml << 'EOF'
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Editar IP"
-        android:layout_alignTop="@id/btnConectar"
-        android:layout_centerHorizontal="true"/>
+        android:layout_below="@id/iconoEstado"
+        android:layout_marginTop="8dp"
+        android:layout_toEndOf="@id/btnConectar"/>
 
     <Button
         android:id="@+id/btnEscanearIP"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Escanear IP"
-        android:layout_alignTop="@id/btnConectar"
-        android:layout_alignParentEnd="true"/>
+        android:layout_below="@id/iconoEstado"
+        android:layout_marginTop="8dp"
+        android:layout_toEndOf="@id/btnEditarIP"/>
 
     <Button
         android:id="@+id/btnEnviarTodos"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Enviar a todos"
         android:layout_below="@id/btnConectar"
-        android:layout_marginTop="8dp"/>
+        android:layout_marginTop="8dp"
+        android:layout_alignParentEnd="true"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
+        android:layout_below="@id/btnEnviarTodos"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/btnEnviarTodos"
-        android:layout_marginTop="8dp"/>
+        android:padding="8dp"/>
 </RelativeLayout>
 EOF
 
+# ------------------------
 # item_producto.xml
+# ------------------------
 cat > $LAYOUT/item_producto.xml << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -323,9 +371,9 @@ cat > $LAYOUT/item_producto.xml << 'EOF'
     <TextView
         android:id="@+id/tvNombre"
         android:layout_width="0dp"
-        android:layout_weight="1"
         android:layout_height="wrap_content"
-        android:text="Nombre Producto"
+        android:layout_weight="1"
+        android:text="Producto"
         android:textSize="16sp"/>
 
     <Button
@@ -336,4 +384,5 @@ cat > $LAYOUT/item_producto.xml << 'EOF'
 </LinearLayout>
 EOF
 
-echo "Todos los archivos se han creado correctamente."
+echo "✅ Setup completado. Ahora puedes compilar:"
+echo "cd ~/Pta-filtrado && ./gradlew clean assembleDebug"
