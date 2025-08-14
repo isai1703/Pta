@@ -22,30 +22,17 @@
         android:orientation="horizontal"
         android:layout_marginTop="8dp"
         android:weightSum="4">
-
-        <Button
-            android:id="@+id/btnConectar"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+        <Button android:id="@+id/btnConectar" android:layout_weight="1"
+            android:layout_width="0dp" android:layout_height="wrap_content"
             android:text="@string/connect"/>
-        <Button
-            android:id="@+id/btnEditarIP"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+        <Button android:id="@+id/btnEditarIP" android:layout_weight="1"
+            android:layout_width="0dp" android:layout_height="wrap_content"
             android:text="@string/edit_ip"/>
-        <Button
-            android:id="@+id/btnEscanearIP"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+        <Button android:id="@+id/btnEscanearIP" android:layout_weight="1"
+            android:layout_width="0dp" android:layout_height="wrap_content"
             android:text="Escanear IP"/>
-        <Button
-            android:id="@+id/btnEnviarTodos"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+        <Button android:id="@+id/btnEnviarTodos" android:layout_weight="1"
+            android:layout_width="0dp" android:layout_height="wrap_content"
             android:text="Enviar a todos"/>
     </LinearLayout>
     <androidx.recyclerview.widget.RecyclerView

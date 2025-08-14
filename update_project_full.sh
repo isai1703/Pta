@@ -1,28 +1,28 @@
 #!/bin/bash
 
 # Ruta del proyecto
-PROYECTO=$GITHUB_WORKSPACE
-
+PROYECTO=~/Pta-filtrado
 echo "📂 Entrando a la carpeta del proyecto"
-cd $PROYECTO || exit 1
+cd $PROYECTO
 
-# 1️⃣ Crear res/drawable si no existe y copiar imágenes locales
-echo "🖼 Preparando drawable..."
+# Crear carpetas necesarias
 mkdir -p app/src/main/res/drawable
-if [ -d "$PROYECTO/drawable" ]; then
-    cp -r $PROYECTO/drawable/* app/src/main/res/drawable/
-fi
+mkdir -p app/src/main/res/layout
+mkdir -p app/src/main/res/values
+mkdir -p app/src/main/java/com/isai1703/pta
 
-# Crear iconos mínimos para que compile
+# Copiar imágenes existentes desde drawable_local/
+echo "🖼 Copiando imágenes de productos..."
+cp -r drawable_local/* app/src/main/res/drawable/
+
+# Crear iconos mínimos para compilar
 cat > app/src/main/res/drawable/ic_disconnected.xml << 'EOF'
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path
-        android:fillColor="#FF0000"
-        android:pathData="M12,2L2,22h20L12,2z"/>
+    <path android:fillColor="#FF0000" android:pathData="M12,2L2,22h20L12,2z"/>
 </vector>
 EOF
 
@@ -32,17 +32,11 @@ cat > app/src/main/res/drawable/ic_producto.xml << 'EOF'
     android:height="64dp"
     android:viewportWidth="64"
     android:viewportHeight="64">
-    <path
-        android:fillColor="#0000FF"
-        android:pathData="M32,2L2,62h60L32,2z"/>
+    <path android:fillColor="#0000FF" android:pathData="M32,2L2,62h60L32,2z"/>
 </vector>
 EOF
 
-# 2️⃣ Sobrescribir archivos Kotlin
-echo "📝 Actualizando archivos Kotlin..."
-
-# MainActivity.kt
-mkdir -p app/src/main/java/com/isai1703/pta
+# Archivos Kotlin
 cat > app/src/main/java/com/isai1703/pta/MainActivity.kt << 'EOF'
 package com.isai1703.pta
 
@@ -102,7 +96,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun enviarComando(producto: Producto) {
-        for (disp in dispositivos) { /* Enviar comando por WiFi/Bluetooth */ }
+        for (disp in dispositivos) { /* Enviar comando WiFi/Bluetooth */ }
         Toast.makeText(this, "Comando enviado: ${producto.nombre}", Toast.LENGTH_SHORT).show()
     }
 
@@ -111,24 +105,18 @@ class MainActivity : AppCompatActivity() {
         tvIp.text = "Conectado"
     }
 
-    private fun editarIP() { /* Código para editar IP */ }
-    private fun escanearDispositivos() { /* Código escaneo multi-dispositivo */ }
-    private fun enviarATodos() { /* Código para enviar a todos los productos */ }
+    private fun editarIP() { /* Editar IP */ }
+    private fun escanearDispositivos() { /* Escaneo multi-dispositivo */ }
+    private fun enviarATodos() { /* Enviar a todos */ }
 }
 EOF
 
-# Producto.kt
 cat > app/src/main/java/com/isai1703/pta/Producto.kt << 'EOF'
 package com.isai1703.pta
 
-data class Producto(
-    val nombre: String,
-    val precio: Double,
-    val imagen: Int
-)
+data class Producto(val nombre: String, val precio: Double, val imagen: Int)
 EOF
 
-# ProductoAdapter.kt
 cat > app/src/main/java/com/isai1703/pta/ProductoAdapter.kt << 'EOF'
 package com.isai1703.pta
 
@@ -170,7 +158,6 @@ class ProductoAdapter(
 }
 EOF
 
-# Device.kt
 cat > app/src/main/java/com/isai1703/pta/Device.kt << 'EOF'
 package com.isai1703.pta
 
@@ -181,9 +168,7 @@ sealed class TipoDispositivo(val nombre: String, val direccion: String) {
 }
 EOF
 
-# Layouts XML
-mkdir -p app/src/main/res/layout
-
+# Layouts
 cat > app/src/main/res/layout/activity_main.xml << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -209,30 +194,17 @@ cat > app/src/main/res/layout/activity_main.xml << 'EOF'
         android:orientation="horizontal"
         android:layout_marginTop="8dp"
         android:weightSum="4">
-
-        <Button
-            android:id="@+id/btnConectar"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+        <Button android:id="@+id/btnConectar" android:layout_weight="1"
+            android:layout_width="0dp" android:layout_height="wrap_content"
             android:text="@string/connect"/>
-        <Button
-            android:id="@+id/btnEditarIP"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+        <Button android:id="@+id/btnEditarIP" android:layout_weight="1"
+            android:layout_width="0dp" android:layout_height="wrap_content"
             android:text="@string/edit_ip"/>
-        <Button
-            android:id="@+id/btnEscanearIP"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+        <Button android:id="@+id/btnEscanearIP" android:layout_weight="1"
+            android:layout_width="0dp" android:layout_height="wrap_content"
             android:text="Escanear IP"/>
-        <Button
-            android:id="@+id/btnEnviarTodos"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+        <Button android:id="@+id/btnEnviarTodos" android:layout_weight="1"
+            android:layout_width="0dp" android:layout_height="wrap_content"
             android:text="Enviar a todos"/>
     </LinearLayout>
     <androidx.recyclerview.widget.RecyclerView
@@ -285,7 +257,6 @@ cat > app/src/main/res/layout/item_producto.xml << 'EOF'
 EOF
 
 # Strings
-mkdir -p app/src/main/res/values
 cat > app/src/main/res/values/strings.xml << 'EOF'
 <resources>
     <string name="app_name">Pta</string>
@@ -294,5 +265,4 @@ cat > app/src/main/res/values/strings.xml << 'EOF'
 </resources>
 EOF
 
-echo "✅ Script creado y listo para ejecutar. Copia imágenes si las tienes en drawable y luego ejecuta:"
-echo "bash update_project_full.sh"
+echo "✅ Proyecto actualizado, funcional y listo para compilar."

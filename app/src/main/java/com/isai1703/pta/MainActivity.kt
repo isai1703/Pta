@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun enviarComando(producto: Producto) {
-        for (disp in dispositivos) { /* Enviar comando por WiFi/Bluetooth */ }
+        for (disp in dispositivos) { /* Enviar comando WiFi/Bluetooth */ }
         Toast.makeText(this, "Comando enviado: ${producto.nombre}", Toast.LENGTH_SHORT).show()
     }
 
@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity() {
         tvIp.text = "Conectado"
     }
 
-    private fun editarIP() { /* Código para editar IP */ }
-    private fun escanearDispositivos() { /* Código escaneo multi-dispositivo */ }
-    private fun enviarATodos() { /* Código para enviar a todos los productos */ }
+    private fun editarIP() { /* Editar IP */ }
+    private fun escanearDispositivos() { /* Escaneo multi-dispositivo */ }
+    private fun enviarATodos() { /* Enviar a todos */ }
 }
