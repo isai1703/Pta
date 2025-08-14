@@ -127,12 +127,10 @@ class MainActivity : AppCompatActivity() {
             val comando = "CMD_GENERAL"
             detectedDevices.forEach { sendCommandToDevice(it, comando) }
         }
-
         btnSimular.setOnClickListener {
             modoSimulacion = true
             activarSimulacion()
         }
-
         btnModoReal.setOnClickListener {
             modoSimulacion = false
             Toast.makeText(this, "Modo Real activado", Toast.LENGTH_SHORT).show()
@@ -215,7 +213,9 @@ class MainActivity : AppCompatActivity() {
             connectedWifi = !ip.isNullOrEmpty() && tryPingHttp(ip)
             connectedBluetooth = checkPairedEsp32()
             updateUi()
-        } catch (e: Exception) { updateUi() }
+        } catch (e: Exception) {
+            updateUi()
+        }
     }
 
     private fun updateUi() {
@@ -240,12 +240,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ----------------------- FUNCIONES DE ENVÍO -----------------------
+
     private fun sendCommand(comando: String) {
         executor.execute {
             if (modoSimulacion) {
                 detectedDevices.forEach {
                     handler.post {
-                        Toast.makeText(this, "Simulación: '$comando' -> ${it.name} (${it.ip})", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this,
+                            "Simulación: '$comando' -> ${it.name} (${it.ip})",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
                 return@execute
@@ -254,13 +260,25 @@ class MainActivity : AppCompatActivity() {
             val ip = esp32Ip
             if (!ip.isNullOrEmpty() && connectedWifi) {
                 val ok = sendCommandWifi(ip, comando)
-                handler.post { Toast.makeText(this, if (ok) "Comando enviado (WiFi)" else "Error WiFi", Toast.LENGTH_SHORT).show() }
+                handler.post {
+                    Toast.makeText(
+                        this,
+                        if (ok) "Comando enviado (WiFi)" else "Error WiFi",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
                 return@execute
             }
 
             if (connectedBluetooth && btDevice != null) {
                 val ok = sendCommandBluetooth(btDevice!!, comando)
-                handler.post { Toast.makeText(this, if (ok) "Comando enviado (Bluetooth)" else "Error Bluetooth", Toast.LENGTH_SHORT).show() }
+                handler.post {
+                    Toast.makeText(
+                        this,
+                        if (ok) "Comando enviado (Bluetooth)" else "Error Bluetooth",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
                 return@execute
             }
 
@@ -270,7 +288,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun sendCommandToDevice(device: DetectedDevice, comando: String) {
         if (modoSimulacion) {
-            handler.post { Toast.makeText(this, "Simulación: '$comando' -> ${device.name} (${device.ip})", Toast.LENGTH_SHORT).show() }
+            handler.post {
+                Toast.makeText(
+                    this,
+                    "Simulación: '$comando' -> ${device.name} (${device.ip})",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         } else {
             sendCommand(comando)
         }
@@ -288,7 +312,9 @@ class MainActivity : AppCompatActivity() {
             conn.connectTimeout = 1500
             conn.readTimeout = 1500
             conn.responseCode in 200..399
-        } catch (e: Exception) { false }
+        } catch (e: Exception) {
+            false
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -306,11 +332,37 @@ class MainActivity : AppCompatActivity() {
             out.flush()
             socket.close()
             true
-        } catch (e: Exception) { false }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // ----------------------- ENVÍO POR WIFI -----------------------
+    private fun sendCommandWifi(ip: String, comando: String): Boolean {
+        return try {
+            val url = URL("http://$ip/cmd?data=$comando")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 2000
+            conn.readTimeout = 2000
+            val code = conn.responseCode
+            conn.disconnect()
+            code in 200..399
+        } catch (e: Exception) {
+            false
+        }
     }
 
     // ----------------------- Placeholders -----------------------
-    private fun connectNow() { Toast.makeText(this, "Función conectar", Toast.LENGTH_SHORT).show() }
-    private fun scanForEsp32InNetwork() { Toast.makeText(this, "Escanear IP", Toast.LENGTH_SHORT).show() }
-    private fun scanForDevicesInNetwork() { Toast.makeText(this, "Escanear dispositivos", Toast.LENGTH_SHORT).show() }
+    private fun connectNow() {
+        Toast.makeText(this, "Función conectar", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun scanForEsp32InNetwork() {
+        Toast.makeText(this, "Escanear IP", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun scanForDevicesInNetwork() {
+        Toast.makeText(this, "Escanear dispositivos", Toast.LENGTH_SHORT).show()
+    }
 }
