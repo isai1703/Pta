@@ -31,12 +31,29 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
+// ----------------------- Clases auxiliares -----------------------
+data class DetectedDevice(
+    val name: String,
+    val ip: String,
+    val type: DeviceType
+)
+
+enum class DeviceType {
+    ESP32,
+    RASPBERRY_PI,
+    STM32,
+    MINI_PC,
+    DESCONOCIDO
+}
+
+// ----------------------- MainActivity -----------------------
 class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val PREFS = "pta_prefs"
         private const val PREF_IP = "esp32_ip"
         private const val PREF_COMMAND_HISTORY = "command_history"
+
         private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
     }
 
@@ -47,6 +64,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnEditarIp: Button
     private lateinit var btnScanIp: Button
     private lateinit var btnEnviarATodos: Button
+    private lateinit var btnScanDevices: Button
+    private lateinit var btnEnviarATodosDetectados: Button
     private lateinit var recyclerView: RecyclerView
 
     private lateinit var prefs: SharedPreferences
@@ -69,11 +88,13 @@ class MainActivity : AppCompatActivity() {
     ) { _permissions -> }
 
     private val commandHistory = mutableListOf<String>()
+    private val detectedDevices = mutableListOf<DetectedDevice>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // --- Views ---
         statusTextView = findViewById(R.id.statusTextView)
         connectionIcon = findViewById(R.id.connectionIcon)
         tvIp = findViewById(R.id.tvIp)
@@ -82,6 +103,8 @@ class MainActivity : AppCompatActivity() {
         btnScanIp = findViewById(R.id.btnScanIp)
         btnEnviarATodos = findViewById(R.id.btnEnviarATodos)
         recyclerView = findViewById(R.id.recyclerView)
+        btnScanDevices = findViewById(R.id.btnScanDevices)
+        btnEnviarATodosDetectados = findViewById(R.id.btnEnviarATodosDetectados)
 
         prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         esp32Ip = prefs.getString(PREF_IP, null)
@@ -92,7 +115,7 @@ class MainActivity : AppCompatActivity() {
             commandHistory.addAll(historyStr.split(";"))
         }
 
-        // Lista completa de productos con todas las imágenes que tienes
+        // Lista de productos
         val productos = listOf(
             Producto("Coca Cola", R.drawable.cocacola, "CMD_COCA", "$15"),
             Producto("Pepsi", R.drawable.pepsi, "CMD_PEPSI", "$15"),
@@ -119,16 +142,40 @@ class MainActivity : AppCompatActivity() {
         )
 
         recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = ProductoAdapter(productos) { comando -> sendCommand(comando) }
+        recyclerView.adapter = ProductoAdapter(productos) { comando ->
+            // Enviar a todos los dispositivos detectados
+            detectedDevices.forEach { sendCommandToDevice(it, comando) }
+        }
 
+        // --- Botones ---
         btnConectar.setOnClickListener { connectNow() }
         btnEditarIp.setOnClickListener { showEditIpDialog() }
         btnScanIp.setOnClickListener { scanForEsp32InNetwork() }
-        btnEnviarATodos.setOnClickListener {
-            productos.forEach { sendCommand(it.comando) }
+        btnEnviarATodos.setOnClickListener { productos.forEach { sendCommand(it.comando) } }
+        btnScanDevices.setOnClickListener { scanForDevicesInNetwork() }
+        btnEnviarATodosDetectados.setOnClickListener {
+            val comando = "CMD_GENERAL"
+            detectedDevices.forEach { sendCommandToDevice(it, comando) }
         }
 
         requestBluetoothPermissionsIfNeeded()
+
+        // --- Simulación temporal de dispositivos y comandos ---
+        executor.execute {
+            detectedDevices.clear()
+            detectedDevices.add(DetectedDevice("ESP32 Simulado", "192.168.1.50", DeviceType.ESP32))
+            detectedDevices.add(DetectedDevice("Raspberry Pi Simulada", "192.168.1.51", DeviceType.RASPBERRY_PI))
+            detectedDevices.add(DetectedDevice("Mini-PC Simulado", "192.168.1.52", DeviceType.MINI_PC))
+
+            connectedWifi = true
+            connectedBluetooth = false
+
+            handler.post {
+                updateUi()
+                Toast.makeText(this, "Simulación de dispositivos activada", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         scheduler.scheduleWithFixedDelay({ checkConnections() }, 0, 8, TimeUnit.SECONDS)
     }
 
@@ -137,9 +184,10 @@ class MainActivity : AppCompatActivity() {
         try {
             scheduler.shutdownNow()
             executor.shutdownNow()
-        } catch (e: Exception) { }
+        } catch (e: Exception) {}
     }
 
+    // ----------------------- Permisos -----------------------
     private fun requestBluetoothPermissionsIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             btPermissionLauncher.launch(
@@ -155,6 +203,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ----------------------- IP -----------------------
     private fun saveIp(ip: String) {
         prefs.edit().putString(PREF_IP, ip).apply()
         esp32Ip = ip
@@ -175,6 +224,7 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    // ----------------------- Conexiones -----------------------
     private fun checkConnections() {
         try {
             val ip = esp32Ip
@@ -204,139 +254,52 @@ class MainActivity : AppCompatActivity() {
                 }
                 else -> {
                     connectionIcon.setImageResource(R.drawable.ic_disconnected)
-                    statusTextView.text = "Desconectado"
+                    statusTextView.text = "No conectado"
                     statusTextView.setTextColor(getColor(R.color.red))
                 }
             }
         }
     }
 
-    private fun tryPingHttp(ip: String): Boolean {
-        return try {
-            val url = URL("http://$ip/status")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.connectTimeout = 1000
-            conn.readTimeout = 1000
-            conn.requestMethod = "GET"
-            conn.connect()
-            val code = conn.responseCode
-            conn.disconnect()
-            code in 200..399
-        } catch (e: Exception) { false }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun checkPairedEsp32(): Boolean {
-        val adapter = bluetoothAdapter ?: return false
-        if (!adapter.isEnabled) return false
-        val paired = adapter.bondedDevices
-        val device = paired?.find { it.name.contains("ESP32", ignoreCase = true) }
-        btDevice = device
-        return device != null
-    }
-
     private fun connectNow() {
-        executor.execute {
-            try {
-                runOnUiThread { statusTextView.text = "Conectando..." }
-                val ip = esp32Ip
-                if (!ip.isNullOrEmpty() && tryPingHttp(ip)) {
-                    connectedWifi = true
-                    connectedBluetooth = false
-                    runOnUiThread { Toast.makeText(this, "Conectado por WiFi", Toast.LENGTH_SHORT).show() }
-                    updateUi()
-                    return@execute
-                }
-
-                if (checkPairedEsp32() && btDevice != null) {
-                    connectedBluetooth = true
-                    connectedWifi = false
-                    runOnUiThread { Toast.makeText(this, "ESP32 emparejado (Bluetooth)", Toast.LENGTH_SHORT).show() }
-                    updateUi()
-                    return@execute
-                }
-
-                connectedWifi = false
-                connectedBluetooth = false
-                updateUi()
-            } catch (e: Exception) {
-                connectedWifi = false
-                connectedBluetooth = false
-                updateUi()
-            }
-        }
+        checkConnections()
+        Toast.makeText(this, "Intentando conectar...", Toast.LENGTH_SHORT).show()
     }
 
+    // ----------------------- Comandos -----------------------
     private fun sendCommand(comando: String) {
         executor.execute {
-            try {
-                val ip = esp32Ip
-                if (!ip.isNullOrEmpty() && connectedWifi) {
-                    val ok = sendCommandWifi(ip, comando)
-                    if (ok) addToHistory(comando)
-                    runOnUiThread { Toast.makeText(this, if (ok) "Comando enviado (WiFi)" else "Error WiFi", Toast.LENGTH_SHORT).show() }
-                    return@execute
-                }
-
-                if (connectedBluetooth && btDevice != null) {
-                    val ok = sendCommandBluetooth(btDevice!!, comando)
-                    if (ok) addToHistory(comando)
-                    runOnUiThread { Toast.makeText(this, if (ok) "Comando enviado (Bluetooth)" else "Error Bluetooth", Toast.LENGTH_SHORT).show() }
-                    return@execute
-                }
-
-                runOnUiThread { Toast.makeText(this, "No hay conexión", Toast.LENGTH_SHORT).show() }
-            } catch (e: Exception) {
-                runOnUiThread { Toast.makeText(this, "Error enviando comando", Toast.LENGTH_SHORT).show() }
-            }
+            detectedDevices.forEach { sendCommandToDevice(it, comando) }
         }
     }
 
-    private fun addToHistory(comando: String) {
-        val entry = "${System.currentTimeMillis()}: $comando"
-        commandHistory.add(entry)
+    private fun sendCommandToDevice(device: DetectedDevice, comando: String) {
+        // --- Simulación ---
+        handler.post {
+            Toast.makeText(
+                this,
+                "Comando '$comando' enviado a ${device.name} (${device.ip}) [Simulado]",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+        commandHistory.add(comando)
         prefs.edit().putString(PREF_COMMAND_HISTORY, commandHistory.joinToString(";")).apply()
     }
 
-    private fun sendCommandWifi(ip: String, comando: String): Boolean {
-        return try {
-            val url = URL("http://$ip/cmd?data=${comando}")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "GET"
-            conn.connectTimeout = 2000
-            conn.readTimeout = 2000
-            val code = conn.responseCode
-            conn.disconnect()
-            code in 200..399
-        } catch (e: Exception) { false }
+    // ----------------------- Funciones de simulación -----------------------
+    private fun tryPingHttp(ip: String): Boolean {
+        return true // Simulación: siempre responde
     }
 
-    @SuppressLint("MissingPermission")
-    private fun sendCommandBluetooth(device: BluetoothDevice, comando: String): Boolean {
-        return try {
-            val socket = device.createRfcommSocketToServiceRecord(SPP_UUID)
-            socket.connect()
-            val out: OutputStream? = socket.outputStream
-            out?.write((comando + "\n").toByteArray())
-            out?.flush()
-            socket.close()
-            true
-        } catch (e: Exception) { false }
+    private fun checkPairedEsp32(): Boolean {
+        return false // Simulación: Bluetooth desconectado
     }
 
     private fun scanForEsp32InNetwork() {
-        executor.execute {
-            val baseIp = esp32Ip?.substringBeforeLast('.') ?: "192.168.1"
-            var foundIp: String? = null
-            for (i in 1..254) {
-                val testIp = "$baseIp.$i"
-                if (tryPingHttp(testIp)) { foundIp = testIp; break }
-            }
-            foundIp?.let {
-                saveIp(it)
-                runOnUiThread { Toast.makeText(this, "ESP32 encontrado en IP: $it", Toast.LENGTH_LONG).show() }
-                checkConnections()
-            }
-        }
+        Toast.makeText(this, "Simulando escaneo de IPs...", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun scanForDevicesInNetwork() {
+        Toast.makeText(this, "Simulando escaneo de dispositivos...", Toast.LENGTH_SHORT).show()
     }
 }

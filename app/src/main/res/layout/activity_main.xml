@@ -6,6 +6,7 @@
     android:orientation="vertical"
     android:padding="16dp">
 
+    <!-- Estado de conexión -->
     <TextView
         android:id="@+id/statusTextView"
         android:layout_width="wrap_content"
@@ -20,6 +21,7 @@
         android:layout_height="48dp"
         android:src="@drawable/ic_disconnected"/>
 
+    <!-- IP del ESP32 -->
     <TextView
         android:id="@+id/tvIp"
         android:layout_width="wrap_content"
@@ -27,6 +29,7 @@
         android:text="IP: ---"
         android:textSize="16sp"/>
 
+    <!-- Botones principales -->
     <Button
         android:id="@+id/btnConectar"
         android:layout_width="match_parent"
@@ -51,6 +54,20 @@
         android:layout_height="wrap_content"
         android:text="Enviar a todos"/>
 
+    <!-- Nuevos botones para la nueva funcionalidad -->
+    <Button
+        android:id="@+id/btnScanDevices"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Escanear dispositivos en red"/>
+
+    <Button
+        android:id="@+id/btnEnviarATodosDetectados"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enviar a todos los detectados"/>
+
+    <!-- Lista de productos -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
