@@ -22,8 +22,7 @@ class ProductoAdapter(
     override fun getItemCount() = productos.size
 
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
-        val producto = productos[position]
-        holder.bind(producto)
+        holder.bind(productos[position])
     }
 
     inner class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -36,7 +35,10 @@ class ProductoAdapter(
             imagen.setImageResource(producto.imagenResId)
             nombre.text = producto.nombre
             precio.text = producto.precio
-            btnEnviar.setOnClickListener { onCommandClick(producto.comando) }
+
+            btnEnviar.setOnClickListener {
+                onCommandClick(producto.comando)
+            }
         }
     }
 }

@@ -1,77 +1,131 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    tools:context=".MainActivity">
 
     <!-- Estado de conexión -->
-    <TextView
-        android:id="@+id/statusTextView"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Estado"
-        android:textSize="18sp"
-        android:textColor="@color/black"/>
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="8dp">
 
-    <ImageView
-        android:id="@+id/connectionIcon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:src="@drawable/ic_disconnected"/>
+        <ImageView
+            android:id="@+id/connectionIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_disconnected"
+            android:contentDescription="Estado de conexión" />
 
-    <!-- IP del ESP32 -->
-    <TextView
-        android:id="@+id/tvIp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="IP: ---"
-        android:textSize="16sp"/>
+        <TextView
+            android:id="@+id/statusTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="Desconectado"
+            android:textSize="16sp"
+            android:textColor="@color/red" />
+
+        <TextView
+            android:id="@+id/tvIp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="IP: ---"
+            android:textSize="16sp" />
+    </LinearLayout>
 
     <!-- Botones principales -->
-    <Button
-        android:id="@+id/btnConectar"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Conectar"/>
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:weightSum="4"
+        android:paddingBottom="8dp">
 
-    <Button
-        android:id="@+id/btnEditarIp"
+        <Button
+            android:id="@+id/btnConectar"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Conectar" />
+
+        <Button
+            android:id="@+id/btnEditarIp"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Editar IP" />
+
+        <Button
+            android:id="@+id/btnScanIp"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Escanear IP" />
+
+        <Button
+            android:id="@+id/btnEnviarATodos"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Enviar a todos" />
+    </LinearLayout>
+
+    <!-- Botones de dispositivos -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Editar IP"/>
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:weightSum="3"
+        android:paddingBottom="8dp">
 
+        <Button
+            android:id="@+id/btnScanDevices"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Escanear dispositivos" />
+
+        <Button
+            android:id="@+id/btnEnviarATodosDetectados"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Enviar a detectados" />
+
+        <Button
+            android:id="@+id/btnSimular"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Simular" />
+    </LinearLayout>
+
+    <!-- Botón modo real -->
     <Button
-        android:id="@+id/btnScanIp"
+        android:id="@+id/btnModoReal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Buscar ESP32"/>
+        android:text="Modo Real"
+        android:layout_marginBottom="8dp" />
 
-    <Button
-        android:id="@+id/btnEnviarATodos"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Enviar a todos"/>
-
-    <!-- Nuevos botones para la nueva funcionalidad -->
-    <Button
-        android:id="@+id/btnScanDevices"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Escanear dispositivos en red"/>
-
-    <Button
-        android:id="@+id/btnEnviarATodosDetectados"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Enviar a todos los detectados"/>
-
-    <!-- Lista de productos -->
+    <!-- RecyclerView de productos -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"/>
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp" />
 
 </LinearLayout>
