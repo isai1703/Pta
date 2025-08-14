@@ -14,16 +14,10 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.isai1703.pta.Device.TipoDispositivo
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
-
-data class TipoDispositivo(
-    val nombre: String,
-    val tipo: String,
-    val direccion: String,
-    val conexion: String
-)
 
 class MainActivity : AppCompatActivity() {
 
@@ -37,6 +31,7 @@ class MainActivity : AppCompatActivity() {
         checkPermissions()
         scanBluetoothDevices()
         scanWifiDevices()
+        // Tu lógica existente: RecyclerView, comandos, historial...
     }
 
     private fun checkPermissions() {
@@ -66,16 +61,11 @@ class MainActivity : AppCompatActivity() {
         val pairedDevices: Set<BluetoothDevice>? = bluetoothAdapter.bondedDevices
         pairedDevices?.forEach { device ->
             if (isCompatibleBluetooth(device)) {
-                dispositivosCompatibles.add(
-                    TipoDispositivo(
-                        nombre = device.name ?: device.address,
-                        tipo = "Bluetooth",
-                        direccion = device.address,
-                        conexion = "Bluetooth"
-                    )
-                )
+                val tipoDisp = TipoDispositivo.ESP32 // Ajusta según tu enum
+                dispositivosCompatibles.add(tipoDisp)
             }
         }
+
         if (dispositivosCompatibles.isNotEmpty()) showDeviceListDialog()
     }
 
@@ -86,8 +76,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun scanWifiDevices() {
-        # Ejemplo placeholder, agrega tus IPs escaneadas
-        # dispositivosCompatibles.add(TipoDispositivo("ESP32 WiFi", "WiFi", "192.168.1.50", "WiFi"))
+        # Agrega tus IPs detectadas si quieres
+        # dispositivosCompatibles.add(TipoDispositivo.ESP32)
     }
 
     private fun showDeviceListDialog() {
@@ -96,7 +86,7 @@ class MainActivity : AppCompatActivity() {
         val adapter = ArrayAdapter(
             this,
             android.R.layout.simple_list_item_1,
-            dispositivosCompatibles.map { "${it.nombre} (${it.tipo})" }
+            dispositivosCompatibles.map { it.name } 
         )
         listView.adapter = adapter
 
@@ -116,14 +106,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connectToDevice(dispositivo: TipoDispositivo) {
-        Toast.makeText(this, "Conectando a ${dispositivo.nombre}...", Toast.LENGTH_SHORT).show()
-        when (dispositivo.conexion) {
-            "Bluetooth" -> connectBluetooth(dispositivo.direccion)
-            "WiFi" -> connectWifi(dispositivo.direccion)
+        Toast.makeText(this, "Conectando a ${dispositivo.name}...", Toast.LENGTH_SHORT).show()
+        when (dispositivo) {
+            TipoDispositivo.ESP32 -> connectWifi("192.168.1.50")
+            TipoDispositivo.RASPBERRY -> connectWifi("192.168.1.51")
+            TipoDispositivo.STM32 -> connectBluetooth("00:11:22:33:44:55")
+            TipoDispositivo.MINIPC -> connectBluetooth("66:77:88:99:AA:BB")
         }
     }
 
-    @SuppressLint("MissingPermission")
     private fun connectBluetooth(macAddress: String) {
         Toast.makeText(this, "Conectado vía Bluetooth: $macAddress", Toast.LENGTH_SHORT).show()
     }
@@ -144,4 +135,6 @@ class MainActivity : AppCompatActivity() {
             }
         }.start()
     }
+
+    // Tu lógica existente de RecyclerView, productos, envío de comandos y modo simulación
 }
