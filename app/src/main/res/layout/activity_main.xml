@@ -1,1 +1,56 @@
-<!-- Pega aquí tu activity_main.xml completo -->
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvIp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="IP: "
+        android:textSize="16sp"/>
+    <ImageView
+        android:id="@+id/ivConexion"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:src="@drawable/ic_disconnected"/>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:weightSum="4">
+
+        <Button
+            android:id="@+id/btnConectar"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="@string/connect"/>
+        <Button
+            android:id="@+id/btnEditarIP"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="@string/edit_ip"/>
+        <Button
+            android:id="@+id/btnEscanearIP"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Escanear IP"/>
+        <Button
+            android:id="@+id/btnEnviarTodos"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Enviar a todos"/>
+    </LinearLayout>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvProductos"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+</LinearLayout>

@@ -2,5 +2,4 @@
     <string name="app_name">Pta</string>
     <string name="edit_ip">Editar IP</string>
     <string name="connect">Conectar</string>
-    <!-- Agrega aquí todos los strings que uses -->
 </resources>
