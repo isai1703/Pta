@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
         checkPermissions()
         scanBluetoothDevices()
         scanWifiDevices()
-        // Tu lógica existente: RecyclerView, comandos, historial, modo simulación...
+        // RecyclerView productos, envío de comandos, historial y simulación
     }
 
     private fun checkPermissions() {
@@ -45,9 +45,7 @@ class MainActivity : AppCompatActivity() {
         val missing = permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
-        if (missing.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, missing.toTypedArray(), 1)
-        }
+        if (missing.isNotEmpty()) ActivityCompat.requestPermissions(this, missing.toTypedArray(), 1)
     }
 
     @SuppressLint("MissingPermission")
@@ -62,38 +60,32 @@ class MainActivity : AppCompatActivity() {
         pairedDevices?.forEach { device ->
             if (isCompatibleBluetooth(device)) {
                 val tipoDisp = when {
-                    device.name.contains("esp32", ignoreCase = true) -> TipoDispositivo.ESP32
-                    device.name.contains("raspberry", ignoreCase = true) -> TipoDispositivo.RASPBERRY
-                    device.name.contains("stm32", ignoreCase = true) -> TipoDispositivo.STM32
-                    device.name.contains("minipc", ignoreCase = true) -> TipoDispositivo.MINIPC
+                    device.name.contains("esp32", true) -> TipoDispositivo.ESP32
+                    device.name.contains("raspberry", true) -> TipoDispositivo.RASPBERRY
+                    device.name.contains("stm32", true) -> TipoDispositivo.STM32
+                    device.name.contains("minipc", true) -> TipoDispositivo.MINIPC
                     else -> TipoDispositivo.DESCONOCIDO
                 }
                 dispositivosCompatibles.add(tipoDisp)
             }
         }
-
         if (dispositivosCompatibles.isNotEmpty()) showDeviceListDialog()
     }
 
-    private fun isCompatibleBluetooth(device: BluetoothDevice): Boolean {
-        val name = device.name?.lowercase() ?: ""
-        return name.contains("esp32") || name.contains("raspberry") ||
-               name.contains("stm32") || name.contains("minipc")
-    }
+    private fun isCompatibleBluetooth(device: BluetoothDevice) =
+        device.name?.lowercase()?.contains("esp32") == true ||
+        device.name?.lowercase()?.contains("raspberry") == true ||
+        device.name?.lowercase()?.contains("stm32") == true ||
+        device.name?.lowercase()?.contains("minipc") == true
 
     private fun scanWifiDevices() {
-        // Agrega tus IPs detectadas si quieres, por ejemplo:
-        // dispositivosCompatibles.add(TipoDispositivo.ESP32)
+        # Aquí puedes agregar escaneo de IPs en la red
     }
 
     private fun showDeviceListDialog() {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_device_list, null)
         val listView: ListView = dialogView.findViewById(R.id.deviceListView)
-        val adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_list_item_1,
-            dispositivosCompatibles.map { it.name }
-        )
+        val adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, dispositivosCompatibles.map { it.name })
         listView.adapter = adapter
 
         val dialog = AlertDialog.Builder(this)
@@ -103,8 +95,7 @@ class MainActivity : AppCompatActivity() {
             .create()
 
         listView.setOnItemClickListener { _, _, position, _ ->
-            val dispositivo = dispositivosCompatibles[position]
-            connectToDevice(dispositivo)
+            connectToDevice(dispositivosCompatibles[position])
             dialog.dismiss()
         }
 
@@ -113,35 +104,28 @@ class MainActivity : AppCompatActivity() {
 
     private fun connectToDevice(dispositivo: TipoDispositivo) {
         Toast.makeText(this, "Conectando a ${dispositivo.name}...", Toast.LENGTH_SHORT).show()
-        when (dispositivo) {
+        when(dispositivo){
             TipoDispositivo.ESP32 -> connectWifi("192.168.1.50")
             TipoDispositivo.RASPBERRY -> connectWifi("192.168.1.51")
             TipoDispositivo.STM32 -> connectBluetooth("00:11:22:33:44:55")
             TipoDispositivo.MINIPC -> connectBluetooth("66:77:88:99:AA:BB")
-            TipoDispositivo.DESCONOCIDO -> Toast.makeText(this, "Dispositivo desconocido", Toast.LENGTH_SHORT).show()
+            TipoDispositivo.DESCONOCIDO -> Toast.makeText(this,"Dispositivo desconocido",Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun connectBluetooth(macAddress: String) {
-        Toast.makeText(this, "Conectado vía Bluetooth: $macAddress", Toast.LENGTH_SHORT).show()
-    }
+    private fun connectBluetooth(mac: String) = Toast.makeText(this,"Conectado vía Bluetooth: $mac", Toast.LENGTH_SHORT).show()
 
-    private fun connectWifi(ip: String, port: Int = 80) {
+    private fun connectWifi(ip: String, port:Int=80){
         Thread {
             try {
                 val socket = Socket()
-                socket.connect(InetSocketAddress(ip, port), 2000)
-                runOnUiThread {
-                    Toast.makeText(this, "Conectado a $ip", Toast.LENGTH_SHORT).show()
-                }
+                socket.connect(InetSocketAddress(ip,port),2000)
+                runOnUiThread { Toast.makeText(this,"Conectado a $ip",Toast.LENGTH_SHORT).show() }
                 socket.close()
-            } catch (e: IOException) {
-                runOnUiThread {
-                    Toast.makeText(this, "Error de conexión WiFi: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
+            }catch (e:IOException){
+                runOnUiThread { Toast.makeText(this,"Error de conexión WiFi: ${e.message}",Toast.LENGTH_SHORT).show() }
             }
         }.start()
     }
 
-    // Aquí continúa tu lógica existente de RecyclerView, productos, envío de comandos y modo simulación
 }
