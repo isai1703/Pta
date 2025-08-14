@@ -1,131 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/rootLayout"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    tools:context=".MainActivity">
+    android:layout_height="match_parent">
 
-    <!-- Estado de conexión -->
-    <LinearLayout
+    <TextView
+        android:id="@+id/tvIp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingBottom="8dp">
+        android:text="IP de dispositivos"
+        android:textSize="16sp"
+        android:padding="8dp"/>
 
-        <ImageView
-            android:id="@+id/connectionIcon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_disconnected"
-            android:contentDescription="Estado de conexión" />
+    <ImageView
+        android:id="@+id/iconoEstado"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/ic_desconectado"
+        android:layout_below="@id/tvIp"
+        android:layout_marginTop="8dp"
+        android:layout_centerHorizontal="true"/>
 
-        <TextView
-            android:id="@+id/statusTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="Desconectado"
-            android:textSize="16sp"
-            android:textColor="@color/red" />
-
-        <TextView
-            android:id="@+id/tvIp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:text="IP: ---"
-            android:textSize="16sp" />
-    </LinearLayout>
-
-    <!-- Botones principales -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:weightSum="4"
-        android:paddingBottom="8dp">
-
-        <Button
-            android:id="@+id/btnConectar"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="Conectar" />
-
-        <Button
-            android:id="@+id/btnEditarIp"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="Editar IP" />
-
-        <Button
-            android:id="@+id/btnScanIp"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="Escanear IP" />
-
-        <Button
-            android:id="@+id/btnEnviarATodos"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="Enviar a todos" />
-    </LinearLayout>
-
-    <!-- Botones de dispositivos -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:weightSum="3"
-        android:paddingBottom="8dp">
-
-        <Button
-            android:id="@+id/btnScanDevices"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="Escanear dispositivos" />
-
-        <Button
-            android:id="@+id/btnEnviarATodosDetectados"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="Enviar a detectados" />
-
-        <Button
-            android:id="@+id/btnSimular"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="Simular" />
-    </LinearLayout>
-
-    <!-- Botón modo real -->
     <Button
-        android:id="@+id/btnModoReal"
+        android:id="@+id/btnConectar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Conectar"
+        android:layout_below="@id/iconoEstado"
+        android:layout_marginTop="8dp"
+        android:layout_alignParentStart="true"/>
+
+    <Button
+        android:id="@+id/btnEditarIP"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Editar IP"
+        android:layout_alignTop="@id/btnConectar"
+        android:layout_centerHorizontal="true"/>
+
+    <Button
+        android:id="@+id/btnEscanearIP"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Escanear IP"
+        android:layout_alignTop="@id/btnConectar"
+        android:layout_alignParentEnd="true"/>
+
+    <Button
+        android:id="@+id/btnEnviarTodos"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Modo Real"
-        android:layout_marginBottom="8dp" />
+        android:text="Enviar a todos"
+        android:layout_below="@id/btnConectar"
+        android:layout_marginTop="8dp"/>
 
-    <!-- RecyclerView de productos -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp" />
-
-</LinearLayout>
+        android:layout_height="match_parent"
+        android:layout_below="@id/btnEnviarTodos"
+        android:layout_marginTop="8dp"/>
+</RelativeLayout>

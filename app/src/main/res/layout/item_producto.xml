@@ -1,42 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
     android:padding="8dp">
 
     <ImageView
-        android:id="@+id/imagenProducto"
-        android:layout_width="64dp"
-        android:layout_height="64dp"
-        android:contentDescription="Imagen producto"/>
+        android:id="@+id/ivImagen"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:src="@drawable/ic_producto"
+        android:layout_marginEnd="8dp"/>
 
-    <LinearLayout
-        android:orientation="vertical"
-        android:layout_marginStart="8dp"
+    <TextView
+        android:id="@+id/tvNombre"
         android:layout_width="0dp"
+        android:layout_weight="1"
         android:layout_height="wrap_content"
-        android:layout_weight="1">
-
-        <TextView
-            android:id="@+id/nombreProducto"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Nombre Producto"
-            android:textSize="16sp"
-            android:textStyle="bold"/>
-
-        <TextView
-            android:id="@+id/precioProducto"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Precio"
-            android:textSize="14sp"/>
-    </LinearLayout>
+        android:text="Nombre Producto"
+        android:textSize="16sp"/>
 
     <Button
-        android:id="@+id/btnEnviarComando"
+        android:id="@+id/btnEnviar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Enviar"/>

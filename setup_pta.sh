@@ -1,3 +1,15 @@
+#!/bin/bash
+
+# Carpeta base del proyecto
+BASE=~/Pta-filtrado/app/src/main/java/com/isai1703/pta
+LAYOUT=~/Pta-filtrado/app/src/main/res/layout
+
+# Crear carpetas si no existen
+mkdir -p $BASE
+mkdir -p $LAYOUT
+
+# MainActivity.kt
+cat > $BASE/MainActivity.kt << 'EOF'
 package com.isai1703.pta
 
 import android.bluetooth.BluetoothAdapter
@@ -172,3 +184,156 @@ class MainActivity : AppCompatActivity() {
 
 data class Dispositivo(val ip: String, val tipo: TipoDispositivo)
 enum class TipoDispositivo { ESP32, RASPBERRY, MINIPC, DESCONOCIDO }
+EOF
+
+# Producto.kt
+cat > $BASE/Producto.kt << 'EOF'
+package com.isai1703.pta
+
+data class Producto(
+    val id: Int,
+    val nombre: String,
+    val imagen: Int,
+    var disponible: Boolean = true
+)
+EOF
+
+# ProductoAdapter.kt
+cat > $BASE/ProductoAdapter.kt << 'EOF'
+package com.isai1703.pta
+
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+
+class ProductoAdapter(
+    private val productos: List<Producto>,
+    private val onClick: (Producto) -> Unit
+) : RecyclerView.Adapter<ProductoAdapter.ViewHolder>() {
+
+    inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val nombre: TextView = itemView.findViewById(R.id.tvNombre)
+        val imagen: ImageView = itemView.findViewById(R.id.ivImagen)
+        val btnEnviar: Button = itemView.findViewById(R.id.btnEnviar)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_producto, parent, false)
+        return ViewHolder(view)
+    }
+
+    override fun getItemCount(): Int = productos.size
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val producto = productos[position]
+        holder.nombre.text = producto.nombre
+        holder.imagen.setImageResource(producto.imagen)
+        holder.btnEnviar.isEnabled = producto.disponible
+        holder.btnEnviar.setOnClickListener { onClick(producto) }
+    }
+}
+EOF
+
+# activity_main.xml
+cat > $LAYOUT/activity_main.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:id="@+id/tvIp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="IP de dispositivos"
+        android:textSize="16sp"
+        android:padding="8dp"/>
+
+    <ImageView
+        android:id="@+id/iconoEstado"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/ic_desconectado"
+        android:layout_below="@id/tvIp"
+        android:layout_marginTop="8dp"
+        android:layout_centerHorizontal="true"/>
+
+    <Button
+        android:id="@+id/btnConectar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Conectar"
+        android:layout_below="@id/iconoEstado"
+        android:layout_marginTop="8dp"
+        android:layout_alignParentStart="true"/>
+
+    <Button
+        android:id="@+id/btnEditarIP"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Editar IP"
+        android:layout_alignTop="@id/btnConectar"
+        android:layout_centerHorizontal="true"/>
+
+    <Button
+        android:id="@+id/btnEscanearIP"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Escanear IP"
+        android:layout_alignTop="@id/btnConectar"
+        android:layout_alignParentEnd="true"/>
+
+    <Button
+        android:id="@+id/btnEnviarTodos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enviar a todos"
+        android:layout_below="@id/btnConectar"
+        android:layout_marginTop="8dp"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/btnEnviarTodos"
+        android:layout_marginTop="8dp"/>
+</RelativeLayout>
+EOF
+
+# item_producto.xml
+cat > $LAYOUT/item_producto.xml << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp">
+
+    <ImageView
+        android:id="@+id/ivImagen"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:src="@drawable/ic_producto"
+        android:layout_marginEnd="8dp"/>
+
+    <TextView
+        android:id="@+id/tvNombre"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:text="Nombre Producto"
+        android:textSize="16sp"/>
+
+    <Button
+        android:id="@+id/btnEnviar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Enviar"/>
+</LinearLayout>
+EOF
+
+echo "Todos los archivos se han creado correctamente."

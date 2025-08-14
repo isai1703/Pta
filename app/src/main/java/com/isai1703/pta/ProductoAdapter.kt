@@ -10,32 +10,27 @@ import androidx.recyclerview.widget.RecyclerView
 
 class ProductoAdapter(
     private val productos: List<Producto>,
-    private val onCommandClick: (String) -> Unit
-) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
+    private val onClick: (Producto) -> Unit
+) : RecyclerView.Adapter<ProductoAdapter.ViewHolder>() {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_producto, parent, false)
-        return ProductoViewHolder(view)
+    inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val nombre: TextView = itemView.findViewById(R.id.tvNombre)
+        val imagen: ImageView = itemView.findViewById(R.id.ivImagen)
+        val btnEnviar: Button = itemView.findViewById(R.id.btnEnviar)
     }
 
-    override fun getItemCount() = productos.size
-
-    override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
-        holder.bind(productos[position])
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_producto, parent, false)
+        return ViewHolder(view)
     }
 
-    inner class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val imagen: ImageView = itemView.findViewById(R.id.imagenProducto)
-        private val nombre: TextView = itemView.findViewById(R.id.nombreProducto)
-        private val precio: TextView = itemView.findViewById(R.id.precioProducto)
-        private val btnEnviar: Button = itemView.findViewById(R.id.btnEnviarComando)
+    override fun getItemCount(): Int = productos.size
 
-        fun bind(producto: Producto) {
-            imagen.setImageResource(producto.imagenResId)
-            nombre.text = producto.nombre
-            precio.text = producto.precio
-            btnEnviar.setOnClickListener { onCommandClick(producto.comando) }
-        }
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val producto = productos[position]
+        holder.nombre.text = producto.nombre
+        holder.imagen.setImageResource(producto.imagen)
+        holder.btnEnviar.isEnabled = producto.disponible
+        holder.btnEnviar.setOnClickListener { onClick(producto) }
     }
 }
