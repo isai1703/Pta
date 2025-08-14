@@ -1,17 +1,17 @@
 #!/bin/bash
 
 # Ruta del proyecto
-PROYECTO=~/Pta-filtrado
+PROYECTO=$GITHUB_WORKSPACE
 
 echo "📂 Entrando a la carpeta del proyecto"
-cd $PROYECTO
+cd $PROYECTO || exit 1
 
-# 1️⃣ Crear res/drawable si no existe y copiar imágenes
+# 1️⃣ Crear res/drawable si no existe y copiar imágenes locales
 echo "🖼 Preparando drawable..."
 mkdir -p app/src/main/res/drawable
-
-# Imágenes de productos existentes
-cp -r drawable/* app/src/main/res/drawable/
+if [ -d "$PROYECTO/drawable" ]; then
+    cp -r $PROYECTO/drawable/* app/src/main/res/drawable/
+fi
 
 # Crear iconos mínimos para que compile
 cat > app/src/main/res/drawable/ic_disconnected.xml << 'EOF'
@@ -42,6 +42,7 @@ EOF
 echo "📝 Actualizando archivos Kotlin..."
 
 # MainActivity.kt
+mkdir -p app/src/main/java/com/isai1703/pta
 cat > app/src/main/java/com/isai1703/pta/MainActivity.kt << 'EOF'
 package com.isai1703.pta
 
@@ -180,7 +181,9 @@ sealed class TipoDispositivo(val nombre: String, val direccion: String) {
 }
 EOF
 
-# 3️⃣ Layouts
+# Layouts XML
+mkdir -p app/src/main/res/layout
+
 cat > app/src/main/res/layout/activity_main.xml << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -281,7 +284,7 @@ cat > app/src/main/res/layout/item_producto.xml << 'EOF'
 </LinearLayout>
 EOF
 
-# 4️⃣ Strings
+# Strings
 mkdir -p app/src/main/res/values
 cat > app/src/main/res/values/strings.xml << 'EOF'
 <resources>
@@ -291,14 +294,5 @@ cat > app/src/main/res/values/strings.xml << 'EOF'
 </resources>
 EOF
 
-# 5️⃣ Limpiar y compilar
-echo "⚙️ Limpiando y compilando proyecto..."
-./gradlew clean assembleDebug
-
-# 6️⃣ Git add, commit y push
-echo "🌐 Subiendo cambios a GitHub..."
-git add .
-git commit -m "Actualización final completa: layouts, Kotlin y drawables"
-git push origin main
-
-echo "✅ Script finalizado. Proyecto actualizado, compilable y funcional."
+echo "✅ Script creado y listo para ejecutar. Copia imágenes si las tienes en drawable y luego ejecuta:"
+echo "bash update_project_full.sh"
