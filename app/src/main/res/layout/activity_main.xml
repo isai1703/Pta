@@ -22,7 +22,6 @@
         android:orientation="horizontal"
         android:layout_marginTop="8dp"
         android:weightSum="4">
-
         <Button
             android:id="@+id/btnConectar"
             android:layout_weight="1"
@@ -40,13 +39,13 @@
             android:layout_weight="1"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Escanear IP"/>
+            android:text="@string/scan_ip"/>
         <Button
             android:id="@+id/btnEnviarTodos"
             android:layout_weight="1"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Enviar a todos"/>
+            android:text="@string/send_all"/>
     </LinearLayout>
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvProductos"

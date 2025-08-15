@@ -2,4 +2,6 @@
     <string name="app_name">Pta</string>
     <string name="edit_ip">Editar IP</string>
     <string name="connect">Conectar</string>
+    <string name="scan_ip">Escanear IP</string>
+    <string name="send_all">Enviar a todos</string>
 </resources>

@@ -1,5 +1,8 @@
 package com.isai1703.pta
 
+import android.app.Activity
+import android.content.Intent
+import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -18,6 +21,8 @@ class MainActivity : AppCompatActivity() {
 
     private val productos = mutableListOf<Producto>()
     private val dispositivos = mutableListOf<TipoDispositivo>()
+
+    private val PICK_IMAGE = 123
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,21 +56,26 @@ class MainActivity : AppCompatActivity() {
 
     private fun inicializarProductos() {
         productos.add(Producto("Agua", 10.0, R.drawable.ic_producto))
-        productos.add(Producto("Cocacola", 15.0, R.drawable.ic_producto))
-        productos.add(Producto("Paletas", 5.0, R.drawable.ic_producto))
+        productos.add(Producto("Jugo", 15.0, R.drawable.ic_producto))
     }
 
     private fun enviarComando(producto: Producto) {
-        for (disp in dispositivos) { /* Lógica WiFi/Bluetooth por tipo */ }
-        Toast.makeText(this, "Comando enviado: ${producto.nombre}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Enviando ${producto.nombre}", Toast.LENGTH_SHORT).show()
     }
 
     private fun conectarDispositivo() {
-        ivConexion.setImageResource(R.drawable.ic_producto) // ejemplo icono conectado
-        tvIp.text = "Conectado"
+        Toast.makeText(this, "Conectando...", Toast.LENGTH_SHORT).show()
     }
 
-    private fun editarIP() { /* Funcionalidad editar IP */ }
-    private fun escanearDispositivos() { /* Escaneo todos dispositivos */ }
-    private fun enviarATodos() { /* Enviar comando a todos */ }
+    private fun editarIP() {
+        Toast.makeText(this, "Editar IP", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun escanearDispositivos() {
+        Toast.makeText(this, "Escaneando dispositivos...", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun enviarATodos() {
+        Toast.makeText(this, "Enviando a todos los dispositivos", Toast.LENGTH_SHORT).show()
+    }
 }
