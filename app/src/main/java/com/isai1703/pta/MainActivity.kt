@@ -50,22 +50,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun inicializarProductos() {
-        productos.add(Producto("Agua", 10.0, R.drawable.agua))
-        productos.add(Producto("Cocacola", 15.0, R.drawable.cocacola))
-        productos.add(Producto("Paletas", 5.0, R.drawable.paleta))
+        productos.add(Producto("Agua", 10.0, R.drawable.ic_producto))
+        productos.add(Producto("Cocacola", 15.0, R.drawable.ic_producto))
+        productos.add(Producto("Paletas", 5.0, R.drawable.ic_producto))
     }
 
     private fun enviarComando(producto: Producto) {
-        for (disp in dispositivos) { /* Enviar comando WiFi/Bluetooth */ }
+        for (disp in dispositivos) { /* Lógica WiFi/Bluetooth por tipo */ }
         Toast.makeText(this, "Comando enviado: ${producto.nombre}", Toast.LENGTH_SHORT).show()
     }
 
     private fun conectarDispositivo() {
-        ivConexion.setImageResource(R.drawable.ic_connected)
+        ivConexion.setImageResource(R.drawable.ic_producto) // ejemplo icono conectado
         tvIp.text = "Conectado"
     }
 
-    private fun editarIP() { /* Editar IP */ }
-    private fun escanearDispositivos() { /* Escaneo multi-dispositivo */ }
-    private fun enviarATodos() { /* Enviar a todos */ }
+    private fun editarIP() { /* Funcionalidad editar IP */ }
+    private fun escanearDispositivos() { /* Escaneo todos dispositivos */ }
+    private fun enviarATodos() { /* Enviar comando a todos */ }
 }
