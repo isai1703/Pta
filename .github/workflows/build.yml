@@ -1,32 +1,27 @@
-name: Android CI
+name: Android Build
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Set up JDK 17
+      - name: Set up JDK
         uses: actions/setup-java@v3
         with:
-          java-version: "17"
-          distribution: "temurin"
+          distribution: temurin
+          java-version: 17
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
-
-      - name: Build Debug APK
+      - name: Build APK
         run: ./gradlew assembleDebug
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: Pta-filtrado-debug.apk
           path: app/build/outputs/apk/debug/app-debug.apk

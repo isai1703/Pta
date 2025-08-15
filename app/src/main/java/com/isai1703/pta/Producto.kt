@@ -1,7 +1,7 @@
 package com.isai1703.pta
 
 data class Producto(
+    val id: Int,
     val nombre: String,
-    val precio: Double,
-    val imagen: Int
+    var imagenPath: String? = null
 )

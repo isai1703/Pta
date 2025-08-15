@@ -1,54 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/tvIp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="IP: "
-        android:textSize="16sp"/>
-    <ImageView
-        android:id="@+id/ivConexion"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:src="@drawable/ic_disconnected"/>
-    <LinearLayout
+    <Button
+        android:id="@+id/addProductButton"
+        android:text="Agregar Producto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/scanDevicesButton"
+        android:text="Escanear Dispositivos"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <ProgressBar
+        android:id="@+id/progressBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="8dp"
-        android:weightSum="4">
-        <Button
-            android:id="@+id/btnConectar"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="@string/connect"/>
-        <Button
-            android:id="@+id/btnEditarIP"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="@string/edit_ip"/>
-        <Button
-            android:id="@+id/btnEscanearIP"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="@string/scan_ip"/>
-        <Button
-            android:id="@+id/btnEnviarTodos"
-            android:layout_weight="1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="@string/send_all"/>
-    </LinearLayout>
+        android:progress="0"
+        android:max="100"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_marginTop="8dp"/>
+
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvProductos"
+        android:id="@+id/recyclerProductos"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"/>

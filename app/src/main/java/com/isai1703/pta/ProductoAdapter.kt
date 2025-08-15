@@ -1,5 +1,7 @@
 package com.isai1703.pta
 
+import android.content.Context
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,29 +11,27 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 class ProductoAdapter(
-    private val productos: List<Producto>,
-    private val onClick: (Producto) -> Unit
-) : RecyclerView.Adapter<ProductoAdapter.ViewHolder>() {
+    private val context: Context,
+    private val productos: MutableList<Producto>,
+    private val onCommandClick: (Producto) -> Unit
+) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
 
-    inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val ivProducto: ImageView = view.findViewById(R.id.ivProducto)
-        val tvNombre: TextView = view.findViewById(R.id.tvNombre)
-        val tvPrecio: TextView = view.findViewById(R.id.tvPrecio)
-        val btnEnviar: Button = view.findViewById(R.id.btnEnviarComando)
+    class ProductoViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val nombre: TextView = view.findViewById(R.id.productName)
+        val imagen: ImageView = view.findViewById(R.id.productImage)
+        val boton: Button = view.findViewById(R.id.sendCommandButton)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_producto, parent, false)
-        return ViewHolder(view)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
+        val view = LayoutInflater.from(context).inflate(R.layout.item_producto, parent, false)
+        return ProductoViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
         val producto = productos[position]
-        holder.tvNombre.text = producto.nombre
-        holder.tvPrecio.text = "$${producto.precio}"
-        holder.ivProducto.setImageResource(producto.imagen)
-        holder.btnEnviar.setOnClickListener { onClick(producto) }
+        holder.nombre.text = producto.nombre
+        if (producto.imagenPath != null) holder.imagen.setImageURI(Uri.parse(producto.imagenPath))
+        holder.boton.setOnClickListener { onCommandClick(producto) }
     }
 
     override fun getItemCount(): Int = productos.size
