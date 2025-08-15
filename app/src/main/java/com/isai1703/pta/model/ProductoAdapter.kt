@@ -1,6 +1,5 @@
 package com.isai1703.pta.model
 
-import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,30 +8,33 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.isai1703.pta.R
+import com.isai1703.pta.Producto
 
 class ProductoAdapter(
-    private val context: Context,
     private val productos: List<Producto>,
     private val onClick: (Producto) -> Unit
 ) : RecyclerView.Adapter<ProductoAdapter.ViewHolder>() {
 
-    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val nombre: TextView = view.findViewById(R.id.productName)
-        val imagen: ImageView = view.findViewById(R.id.productImage)
-        val btnEnviar: Button = view.findViewById(R.id.btnSendCommand)
+    inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val productName: TextView = view.findViewById(R.id.tvNombre)
+        val productPrice: TextView = view.findViewById(R.id.tvPrecio)
+        val productImage: ImageView = view.findViewById(R.id.ivProducto)
+        val btnSendCommand: Button = view.findViewById(R.id.btnEnviarComando)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(context).inflate(R.layout.item_producto, parent, false)
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_producto, parent, false)
         return ViewHolder(view)
     }
 
-    override fun getItemCount() = productos.size
-
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val producto = productos[position]
-        holder.nombre.text = producto.nombre
-        holder.imagen.setImageResource(producto.imagen)
-        holder.btnEnviar.setOnClickListener { onClick(producto) }
+        holder.productName.text = producto.nombre
+        holder.productPrice.text = "$${producto.precio}"
+        holder.productImage.setImageResource(producto.imagen)
+        holder.btnSendCommand.setOnClickListener { onClick(producto) }
     }
+
+    override fun getItemCount(): Int = productos.size
 }
