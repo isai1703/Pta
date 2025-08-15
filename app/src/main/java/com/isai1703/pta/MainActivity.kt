@@ -2,7 +2,6 @@ package com.isai1703.pta
 
 import android.os.Bundle
 import android.widget.*
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -38,8 +37,8 @@ class MainActivity : AppCompatActivity() {
         inicializarDispositivos()
         inicializarProductos()
 
-        btnConectar.setOnClickListener { conectarDispositivos() }
-        btnEditarIP.setOnClickListener { mostrarDialogEditarIP() }
+        btnConectar.setOnClickListener { conectarDispositivo() }
+        btnEditarIP.setOnClickListener { editarIP() }
         btnEscanearIP.setOnClickListener { escanearDispositivos() }
         btnEnviarTodos.setOnClickListener { enviarATodos() }
     }
@@ -57,51 +56,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun enviarComando(producto: Producto) {
-        for (disp in dispositivos) {
-            when (disp) {
-                is TipoDispositivo.ESP32 -> {/* enviar WiFi/Bluetooth */}
-                is TipoDispositivo.RASPBERRY -> {/* acción específica */}
-                is TipoDispositivo.MINIPC -> {/* acción MiniPC */}
-            }
-        }
+        for (disp in dispositivos) { /* Lógica WiFi/Bluetooth por tipo */ }
         Toast.makeText(this, "Comando enviado: ${producto.nombre}", Toast.LENGTH_SHORT).show()
     }
 
-    private fun conectarDispositivos() {
-        for (disp in dispositivos) {
-            // Aquí podrías verificar conexión real
-        }
-        ivConexion.setImageResource(R.drawable.ic_producto)
-        tvIp.text = "Conectado a todos"
+    private fun conectarDispositivo() {
+        ivConexion.setImageResource(R.drawable.ic_producto) // ejemplo icono conectado
+        tvIp.text = "Conectado"
     }
 
-    private fun mostrarDialogEditarIP() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Editar IP del dispositivo")
-
-        val input = EditText(this)
-        input.hint = "Nueva IP"
-        builder.setView(input)
-
-        builder.setPositiveButton("Guardar") { _, _ ->
-            val nuevaIP = input.text.toString()
-            dispositivos.firstOrNull()?.let { it.direccion = nuevaIP }
-            Toast.makeText(this, "IP actualizada a $nuevaIP", Toast.LENGTH_SHORT).show()
-        }
-
-        builder.setNegativeButton("Cancelar", null)
-        builder.show()
-    }
-
-    private fun escanearDispositivos() {
-        Toast.makeText(this, "Escaneando dispositivos...", Toast.LENGTH_SHORT).show()
-        // Lógica de escaneo real aquí
-    }
-
-    private fun enviarATodos() {
-        for (producto in productos) {
-            enviarComando(producto)
-        }
-        Toast.makeText(this, "Comando enviado a todos los productos", Toast.LENGTH_SHORT).show()
-    }
+    private fun editarIP() { /* Funcionalidad editar IP */ }
+    private fun escanearDispositivos() { /* Escaneo todos dispositivos */ }
+    private fun enviarATodos() { /* Enviar comando a todos */ }
 }
