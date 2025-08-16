@@ -1,7 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Pta</string>
-    <string name="edit_ip">Editar IP</string>
-    <string name="connect">Conectar</string>
-    <string name="scan_ip">Escanear IP</string>
-    <string name="send_all">Enviar a todos</string>
+    <!-- Nombre de la app -->
+    <string name="app_name">Pta-filtrado</string>
+
+    <!-- Placeholders para los productos -->
+    <string name="nombre_producto_placeholder">Nombre del producto</string>
+    <string name="precio_producto_placeholder">$0.00</string>
+
+    <!-- Botones -->
+    <string name="btn_enviar">Enviar</string>
+    <string name="btn_conectar">Conectar</string>
+    <string name="btn_reintentar">Reintentar</string>
+
+    <!-- Descripciones de accesibilidad -->
+    <string name="descripcion_imagen_producto">Imagen del producto</string>
+    <string name="descripcion_estado_conexion">Estado de la conexión</string>
+
+    <!-- Estados de conexión -->
+    <string name="conexion_wifi">Conectado por WiFi</string>
+    <string name="conexion_bluetooth">Conectado por Bluetooth</string>
+    <string name="conexion_no_disponible">Sin conexión</string>
+
+    <!-- Mensajes de la app -->
+    <string name="msg_esp32_conectado">ESP32 conectado correctamente</string>
+    <string name="msg_esp32_desconectado">ESP32 desconectado</string>
+    <string name="msg_enviando_comando">Enviando comando...</string>
+    <string name="msg_comando_enviado">Comando enviado con éxito</string>
+    <string name="msg_error_comunicacion">Error en la comunicación</string>
 </resources>
