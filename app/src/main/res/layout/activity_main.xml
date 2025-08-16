@@ -1,35 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
 
     <Button
-        android:id="@+id/addProductButton"
-        android:text="Agregar Producto"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"/>
-
-    <Button
-        android:id="@+id/scanDevicesButton"
-        android:text="Escanear Dispositivos"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"/>
-
-    <ProgressBar
-        android:id="@+id/progressBar"
+        android:id="@+id/btnScanDevices"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:progress="0"
-        android:max="100"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_marginTop="8dp"/>
+        android:text="Escanear Dispositivos" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerProductos"
+        android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"/>
+        android:layout_weight="1"
+        android:paddingTop="8dp"/>
 </LinearLayout>
+

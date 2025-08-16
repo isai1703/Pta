@@ -1,63 +1,56 @@
 package com.isai1703.pta
 
-import android.app.Activity
-import android.content.Intent
-import android.net.Uri
-import android.os.Bundle
-import android.widget.Button
-import android.widget.ProgressBar
-import android.widget.RecyclerView
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.LinearLayoutManager
+import android.widget.Button
+import android.widget.Toast
+import com.isai1703.pta.model.Producto
+import com.isai1703.pta.model.ProductoAdapter
+import com.isai1703.pta.utils.NetworkUtils
 
 class MainActivity : AppCompatActivity() {
 
-    private val productos = mutableListOf<Producto>()
+    private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ProductoAdapter
-    private lateinit var recycler: RecyclerView
-    private lateinit var progressBar: ProgressBar
-
-    private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            val index = productos.size - 1
-            productos[index].imagenPath = it.toString()
-            adapter.notifyItemChanged(index)
-        }
-    }
+    private val listaProductos = mutableListOf<Producto>()
+    private lateinit var scanButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        recycler = findViewById(R.id.recyclerProductos)
-        progressBar = findViewById(R.id.progressBar)
+        recyclerView = findViewById(R.id.recyclerView)
+        recyclerView.layoutManager = LinearLayoutManager(this)
 
-        adapter = ProductoAdapter(this, productos) { producto ->
-            Toast.makeText(this, "Enviando comando a ${producto.nombre}", Toast.LENGTH_SHORT).show()
-            NetworkUtils.sendCommand(this, producto.nombre)
+        adapter = ProductoAdapter(listaProductos) { producto ->
+            sendCommand(producto)
         }
+        recyclerView.adapter = adapter
 
-        recycler.adapter = adapter
-
-        val addButton: Button = findViewById(R.id.addProductButton)
-        addButton.setOnClickListener {
-            productos.add(Producto(productos.size + 1, "Producto ${productos.size + 1}"))
-            adapter.notifyItemInserted(productos.size - 1)
-            pickImage.launch("image/*")
-        }
-
-        val scanButton: Button = findViewById(R.id.scanDevicesButton)
+        // Botón para escanear dispositivos
+        scanButton = findViewById(R.id.btnScanDevices)
         scanButton.setOnClickListener {
-            progressBar.progress = 0
-            Thread {
-                val encontrados = NetworkUtils.scanDevices(this) { prog ->
-                    runOnUiThread { progressBar.progress = prog }
-                }
-                runOnUiThread {
-                    Toast.makeText(this, "Encontrados: ${encontrados.size} dispositivos", Toast.LENGTH_LONG).show()
-                }
-            }.start()
+            scanDevices()
+        }
+
+        // Agregar productos de prueba
+        listaProductos.add(Producto("Producto 1", "$10", R.drawable.icon_prueba))
+        listaProductos.add(Producto("Producto 2", "$15", R.drawable.icon_prueba))
+        adapter.notifyDataSetChanged()
+    }
+
+    private fun sendCommand(producto: Producto) {
+        Toast.makeText(this, "Enviando comando a ${producto.nombre}", Toast.LENGTH_SHORT).show()
+        // Aquí se integra WiFi/Bluetooth según NetworkUtils
+    }
+
+    private fun scanDevices() {
+        NetworkUtils.scanDevices(this) { device, progress ->
+            runOnUiThread {
+                Toast.makeText(this, "Detectado: ${device.type} en ${device.ip} ($progress%)", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 }

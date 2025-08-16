@@ -1,28 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="horizontal"
     android:padding="8dp"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
     <ImageView
-        android:id="@+id/productImage"
+        android:id="@+id/ivProducto"
         android:layout_width="64dp"
         android:layout_height="64dp"
-        android:src="@mipmap/ic_launcher"/>
+        android:src="@drawable/icon_prueba"
+        android:contentDescription="Imagen del producto"/>
 
-    <TextView
-        android:id="@+id/productName"
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_marginStart="8dp"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:paddingStart="8dp"
-        android:text="Nombre Producto"/>
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/tvNombre"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Nombre Producto"
+            android:textSize="16sp"/>
+        <TextView
+            android:id="@+id/tvPrecio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="$0"
+            android:textSize="14sp"/>
+    </LinearLayout>
 
     <Button
-        android:id="@+id/sendCommandButton"
-        android:text="Enviar"
+        android:id="@+id/btnEnviarComando"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"/>
+        android:layout_height="wrap_content"
+        android:text="Enviar"/>
 </LinearLayout>
