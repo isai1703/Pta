@@ -32,7 +32,6 @@ class MainActivity : AppCompatActivity() {
 
     private val listaProductos = mutableListOf<Producto>()
     private val dispositivosDetectados = mutableListOf<Dispositivo>()
-
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,7 +48,7 @@ class MainActivity : AppCompatActivity() {
             sendCommand(producto)
         }
 
-        // Llenar productos de ejemplo
+        // Llenar productos de ejemplo con icono de prueba
         listaProductos.add(Producto("Producto 1", "$10", R.drawable.icon_prueba))
         listaProductos.add(Producto("Producto 2", "$20", R.drawable.icon_prueba))
         recyclerView.adapter?.notifyDataSetChanged()
@@ -60,6 +59,7 @@ class MainActivity : AppCompatActivity() {
 
     data class Dispositivo(val ip: String, val tipo: String, val nombre: String)
 
+    // Enviar comando WiFi/Bluetooth según dispositivo
     private fun sendCommand(producto: Producto) {
         val dispositivo = dispositivosDetectados.firstOrNull()
         if (dispositivo != null) {
@@ -82,8 +82,8 @@ class MainActivity : AppCompatActivity() {
             try {
                 val url = URL("http://$ip/command?cmd=$comando")
                 val connection = url.openConnection() as HttpURLConnection
-                connection.connectTimeout = 500
-                connection.readTimeout = 500
+                connection.connectTimeout = 2000 // timeout aumentado
+                connection.readTimeout = 2000
                 connection.requestMethod = "GET"
                 val responseCode = connection.responseCode
                 runOnUiThread {
@@ -130,7 +130,6 @@ class MainActivity : AppCompatActivity() {
 
         progressBar.max = total
         progressBar.progress = 0
-
         dispositivosDetectados.clear()
 
         for (ip in ips) {
@@ -169,13 +168,13 @@ class MainActivity : AppCompatActivity() {
     private fun detectDevice(ip: String): Dispositivo? {
         return try {
             val socket = Socket()
-            socket.connect(InetSocketAddress(ip, 80), 200)
+            socket.connect(InetSocketAddress(ip, 80), 2000) // timeout aumentado
             socket.close()
 
             val url = URL("http://$ip")
             val connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 200
-            connection.readTimeout = 200
+            connection.connectTimeout = 2000
+            connection.readTimeout = 2000
             connection.requestMethod = "GET"
             val header = connection.getHeaderField("Server") ?: ""
 

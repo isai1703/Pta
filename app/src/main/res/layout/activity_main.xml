@@ -1,36 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical" 
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="16dp">
 
+    <!-- Botón para iniciar escaneo de dispositivos -->
     <Button
         android:id="@+id/btnScanDevices"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Escanear Dispositivos" />
 
+    <!-- Barra de progreso horizontal para mostrar el avance del escaneo -->
     <ProgressBar
         android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:visibility="visible"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_marginTop="8dp"/>
+        android:layout_marginTop="8dp"
+        android:visibility="visible" />
 
+    <!-- Texto que indica el progreso actual del escaneo -->
     <TextView
         android:id="@+id/tvProgress"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Progreso"
-        android:layout_marginTop="4dp"/>
+        android:layout_marginTop="4dp" />
 
+    <!-- RecyclerView para mostrar el catálogo de productos -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:paddingTop="8dp"/>
-</LinearLayout>
+        android:paddingTop="8dp" />
 
+</LinearLayout>
