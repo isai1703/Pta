@@ -3,12 +3,11 @@ package com.isai1703.pta
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -29,6 +28,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvProgress: TextView
+    private lateinit var btnScanDevices: Button
 
     private val listaProductos = mutableListOf<Producto>()
     private val dispositivosDetectados = mutableListOf<Dispositivo>()
@@ -42,25 +42,24 @@ class MainActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recyclerView)
         progressBar = findViewById(R.id.progressBar)
         tvProgress = findViewById(R.id.tvProgress)
+        btnScanDevices = findViewById(R.id.btnScanDevices)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = ProductoAdapter(listaProductos) { producto ->
             sendCommand(producto)
         }
 
-        // Llenar productos de ejemplo con icono de prueba
+        // Llenar productos de ejemplo
         listaProductos.add(Producto("Producto 1", "$10", R.drawable.icon_prueba))
         listaProductos.add(Producto("Producto 2", "$20", R.drawable.icon_prueba))
         recyclerView.adapter?.notifyDataSetChanged()
 
-        // Iniciar escaneo de dispositivos
-        scanDevices()
+        // Escaneo al presionar botón
+        btnScanDevices.setOnClickListener { scanDevices() }
     }
 
-    // Clase de dispositivo detectado
     data class Dispositivo(val ip: String, val tipo: String, val nombre: String)
 
-    // Envío de comando WiFi o Bluetooth según dispositivo
     private fun sendCommand(producto: Producto) {
         val dispositivo = dispositivosDetectados.firstOrNull()
         if (dispositivo != null) {
@@ -71,16 +70,13 @@ class MainActivity : AppCompatActivity() {
                 dispositivo.tipo.contains("STM32", true) || dispositivo.tipo.contains("Raspberry", true) -> {
                     sendCommandBluetooth(producto.nombre)
                 }
-                else -> {
-                    Toast.makeText(this, "Dispositivo no soportado", Toast.LENGTH_SHORT).show()
-                }
+                else -> Toast.makeText(this, "Dispositivo no soportado", Toast.LENGTH_SHORT).show()
             }
         } else {
             Toast.makeText(this, "No hay dispositivos detectados", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // Enviar comando por WiFi/HTTP
     private fun sendCommandWifi(ip: String, comando: String) {
         Thread {
             try {
@@ -101,7 +97,6 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    // Enviar comando por Bluetooth
     private fun sendCommandBluetooth(comando: String) {
         bluetoothAdapter?.bondedDevices?.firstOrNull()?.let { device: BluetoothDevice ->
             Thread {
@@ -126,7 +121,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Escaneo de dispositivos con ThreadPool y progreso
     private fun scanDevices() {
         val handler = Handler(Looper.getMainLooper())
         val executor = Executors.newFixedThreadPool(20)
@@ -136,6 +130,8 @@ class MainActivity : AppCompatActivity() {
 
         progressBar.max = total
         progressBar.progress = 0
+
+        dispositivosDetectados.clear()
 
         for (ip in ips) {
             executor.execute {
@@ -151,7 +147,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Generar IPs locales
     private fun generateIPsInLocalSubnet(): List<String> {
         val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val dhcp = wifiManager.dhcpInfo
@@ -171,13 +166,12 @@ class MainActivity : AppCompatActivity() {
         return ips
     }
 
-    // Detectar dispositivo por puerto y firma HTTP
     private fun detectDevice(ip: String): Dispositivo? {
         return try {
-            // Intento de conexión HTTP para identificar tipo
             val socket = Socket()
             socket.connect(InetSocketAddress(ip, 80), 200)
             socket.close()
+
             val url = URL("http://$ip")
             val connection = url.openConnection() as HttpURLConnection
             connection.connectTimeout = 200
