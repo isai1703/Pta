@@ -5,3 +5,4 @@ data class Producto(
     val precio: String,
     val imagen: Int
 )
+
