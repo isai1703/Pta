@@ -2,8 +2,13 @@ package com.isai1703.pta
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.LinkProperties
+import android.net.Network
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,6 +23,7 @@ import com.isai1703.pta.model.Producto
 import com.isai1703.pta.model.ProductoAdapter
 import java.io.OutputStream
 import java.net.HttpURLConnection
+import java.net.Inet4Address
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.URL
@@ -32,7 +38,12 @@ class MainActivity : AppCompatActivity() {
 
     private val listaProductos = mutableListOf<Producto>()
     private val dispositivosDetectados = mutableListOf<Dispositivo>()
-    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+
+    // Usar BluetoothManager en lugar de getDefaultAdapter()
+    private val bluetoothAdapter: BluetoothAdapter? by lazy {
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothManager.adapter
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,18 +59,17 @@ class MainActivity : AppCompatActivity() {
             sendCommand(producto)
         }
 
-        // Llenar productos de ejemplo con icono de prueba
+        // Productos de ejemplo
         listaProductos.add(Producto("Producto 1", "$10", R.drawable.icon_prueba))
         listaProductos.add(Producto("Producto 2", "$20", R.drawable.icon_prueba))
         recyclerView.adapter?.notifyDataSetChanged()
 
-        // Escaneo al presionar botón
         btnScanDevices.setOnClickListener { scanDevices() }
     }
 
     data class Dispositivo(val ip: String, val tipo: String, val nombre: String)
 
-    // Enviar comando WiFi/Bluetooth según dispositivo
+    // -------- Enviar comandos --------
     private fun sendCommand(producto: Producto) {
         val dispositivo = dispositivosDetectados.firstOrNull()
         if (dispositivo != null) {
@@ -82,7 +92,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val url = URL("http://$ip/command?cmd=$comando")
                 val connection = url.openConnection() as HttpURLConnection
-                connection.connectTimeout = 2000 // timeout aumentado
+                connection.connectTimeout = 2000
                 connection.readTimeout = 2000
                 connection.requestMethod = "GET"
                 val responseCode = connection.responseCode
@@ -121,6 +131,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // -------- Escaneo de red --------
     private fun scanDevices() {
         val handler = Handler(Looper.getMainLooper())
         val executor = Executors.newFixedThreadPool(20)
@@ -147,10 +158,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun generateIPsInLocalSubnet(): List<String> {
-        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val dhcp = wifiManager.dhcpInfo
-        val baseIP = dhcp.ipAddress
         val ips = mutableListOf<String>()
+        val baseIP: Int = getDeviceIpAddress()
+
         for (i in 1..254) {
             val ip = (baseIP and 0xFFFFFF00.toInt()) or i
             val formattedIP = String.format(
@@ -165,10 +175,24 @@ class MainActivity : AppCompatActivity() {
         return ips
     }
 
+    // Método moderno para obtener IP (reemplaza dhcpInfo)
+    private fun getDeviceIpAddress(): Int {
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val activeNetwork: Network? = connectivityManager.activeNetwork
+        val linkProperties: LinkProperties? = connectivityManager.getLinkProperties(activeNetwork)
+        val inetAddress = linkProperties?.linkAddresses?.map { it.address }?.firstOrNull { it is Inet4Address }
+        return inetAddress?.address?.let {
+            (it[3].toInt() and 0xff shl 24) or
+                    (it[2].toInt() and 0xff shl 16) or
+                    (it[1].toInt() and 0xff shl 8) or
+                    (it[0].toInt() and 0xff)
+        } ?: 0
+    }
+
     private fun detectDevice(ip: String): Dispositivo? {
         return try {
             val socket = Socket()
-            socket.connect(InetSocketAddress(ip, 80), 2000) // timeout aumentado
+            socket.connect(InetSocketAddress(ip, 80), 2000)
             socket.close()
 
             val url = URL("http://$ip")
