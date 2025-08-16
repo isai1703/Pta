@@ -1,0 +1,58 @@
+name: Build Debug APK
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-debug-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1️⃣ Clonar repositorio
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # 2️⃣ Configurar JDK 11
+    - name: Set up JDK 11
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+
+    # 3️⃣ Configurar Android SDK
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v2
+      with:
+        api-level: 34
+        build-tools: 34.0.0
+
+    # 4️⃣ Cache de Gradle
+    - name: Cache Gradle
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    # 5️⃣ Dar permisos a gradlew
+    - name: Grant execute permission for gradlew
+      run: chmod +x ./gradlew
+
+    # 6️⃣ Compilar APK Debug
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug
+
+    # 7️⃣ Subir APK Debug como artifact
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: Debug-APK
+        path: app/build/outputs/apk/debug/app-debug.apk
