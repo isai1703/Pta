@@ -20,14 +20,15 @@ class ProductoAdapter(
         return ProductoViewHolder(view)
     }
 
-    override fun getItemCount(): Int = productos.size
-
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
-        val producto = productos[position]
-        holder.tvNombre.text = producto.nombre
-        holder.tvPrecio.text = producto.precio
-        holder.ivProducto.setImageResource(producto.imagen)
-        holder.btnEnviarComando.setOnClickListener { onSendCommandClick(producto) }
+         val producto = productos[position]
+         holder.tvNombre.text = producto.nombre          // antes productName
+         holder.tvPrecio.text = producto.precio
+         holder.ivProducto.setImageResource(producto.imagen) // antes productImage
+         holder.btnEnviarComando.setOnClickListener {
+        onSendCommandClick(producto)
+    }
+}
 
     }
 
