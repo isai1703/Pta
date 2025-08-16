@@ -28,6 +28,7 @@ class ProductoAdapter(
         holder.tvPrecio.text = producto.precio
         holder.ivProducto.setImageResource(producto.imagen)
         holder.btnEnviarComando.setOnClickListener { onSendCommandClick(producto) }
+
     }
 
     class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
