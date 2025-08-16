@@ -1,30 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Nombre de la app -->
     <string name="app_name">Pta-filtrado</string>
 
-    <!-- Placeholders para los productos -->
-    <string name="nombre_producto_placeholder">Nombre del producto</string>
-    <string name="precio_producto_placeholder">$0.00</string>
-
-    <!-- Botones -->
-    <string name="btn_enviar">Enviar</string>
-    <string name="btn_conectar">Conectar</string>
-    <string name="btn_reintentar">Reintentar</string>
-
-    <!-- Descripciones de accesibilidad -->
+    <!-- Strings usados en item_producto.xml -->
     <string name="descripcion_imagen_producto">Imagen del producto</string>
-    <string name="descripcion_estado_conexion">Estado de la conexión</string>
+    <string name="nombre_producto_placeholder">Nombre del producto</string>
+    <string name="precio_producto_placeholder">Precio</string>
+    <string name="btn_enviar">Enviar</string>
 
-    <!-- Estados de conexión -->
-    <string name="conexion_wifi">Conectado por WiFi</string>
-    <string name="conexion_bluetooth">Conectado por Bluetooth</string>
-    <string name="conexion_no_disponible">Sin conexión</string>
-
-    <!-- Mensajes de la app -->
-    <string name="msg_esp32_conectado">ESP32 conectado correctamente</string>
-    <string name="msg_esp32_desconectado">ESP32 desconectado</string>
-    <string name="msg_enviando_comando">Enviando comando...</string>
-    <string name="msg_comando_enviado">Comando enviado con éxito</string>
-    <string name="msg_error_comunicacion">Error en la comunicación</string>
+    <!-- Strings adicionales para compatibilidad general -->
+    <string name="dispositivo_no_soportado">Dispositivo no soportado</string>
+    <string name="sin_dispositivos_detectados">No hay dispositivos detectados</string>
+    <string name="error_wifi">Error WiFi: %1$s</string>
+    <string name="error_bluetooth">Error Bluetooth: %1$s</string>
+    <string name="comando_enviado_wifi">Comando enviado por WiFi: %1$s</string>
+    <string name="comando_enviado_bluetooth">Comando enviado por Bluetooth</string>
 </resources>

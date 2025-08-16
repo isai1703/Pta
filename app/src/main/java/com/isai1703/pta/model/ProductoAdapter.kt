@@ -25,7 +25,6 @@ class ProductoAdapter(
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
         val producto = productos[position]
 
-        // Propiedades coinciden con Producto.kt y layout item_producto.xml
         holder.tvNombre.text = producto.nombre
         holder.tvPrecio.text = producto.precio
         holder.ivProducto.setImageResource(producto.imagen)

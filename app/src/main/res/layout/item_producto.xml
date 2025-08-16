@@ -26,21 +26,23 @@
 
         <TextView
             android:id="@+id/tvNombre"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/nombre_producto_placeholder"
             android:textSize="16sp"
             android:textStyle="bold"
             android:ellipsize="end"
-            android:maxLines="1" />
+            android:singleLine="true" />
 
         <TextView
             android:id="@+id/tvPrecio"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/precio_producto_placeholder"
             android:textSize="14sp"
-            android:textColor="@android:color/holo_green_dark" />
+            android:textColor="@android:color/holo_green_dark"
+            android:ellipsize="end"
+            android:singleLine="true" />
     </LinearLayout>
 
     <!-- Botón de acción -->
@@ -51,5 +53,5 @@
         android:text="@string/btn_enviar"
         android:padding="6dp"
         android:minWidth="72dp" />
-</LinearLayout>
 
+</LinearLayout>
