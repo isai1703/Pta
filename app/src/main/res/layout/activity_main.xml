@@ -5,23 +5,22 @@
     android:layout_height="match_parent"
     android:padding="16dp">
 
-    <!-- Botón para iniciar escaneo de dispositivos -->
+    <!-- Botón para iniciar escaneo -->
     <Button
         android:id="@+id/btnScanDevices"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Escanear Dispositivos" />
+        android:text="Escanear dispositivos" />
 
-    <!-- Barra de progreso horizontal para mostrar el avance del escaneo -->
+    <!-- Barra de progreso -->
     <ProgressBar
         android:id="@+id/progressBar"
         style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:visibility="visible" />
+        android:layout_marginTop="8dp" />
 
-    <!-- Texto que indica el progreso actual del escaneo -->
+    <!-- Texto de progreso -->
     <TextView
         android:id="@+id/tvProgress"
         android:layout_width="wrap_content"
@@ -29,12 +28,18 @@
         android:text="Progreso"
         android:layout_marginTop="4dp" />
 
-    <!-- RecyclerView para mostrar el catálogo de productos -->
+    <!-- Lista de productos -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="150dp"
         android:paddingTop="8dp" />
+
+    <!-- Lista de dispositivos detectados -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewDevices"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_marginTop="8dp" />
 
 </LinearLayout>

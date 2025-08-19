@@ -1,46 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="horizontal"
-    android:padding="6dp"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:background="?android:attr/selectableItemBackground">
 
-    <ImageView
-        android:id="@+id/ivStatus"
-        android:layout_width="22dp"
-        android:layout_height="22dp"
-        android:src="@drawable/ic_disconnected"
-        android:layout_marginEnd="8dp"/>
-
-    <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="0dp"
-        android:layout_weight="1"
-        android:layout_height="wrap_content">
-
-        <TextView
-            android:id="@+id/tvNombreDispositivo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Nombre"
-            android:textSize="14sp"/>
-        <TextView
-            android:id="@+id/tvDireccionDispositivo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="192.168.1.x / BT"
-            android:textSize="12sp"/>
-        <TextView
-            android:id="@+id/tvTipoDispositivo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Tipo"
-            android:textSize="12sp"/>
-    </LinearLayout>
-
-    <Button
-        android:id="@+id/btnConectar"
+    <TextView
+        android:id="@+id/tvDeviceName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Conectar"/>
+        android:text="Nombre"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvDeviceIp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="IP" />
+
+    <TextView
+        android:id="@+id/tvDeviceType"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tipo" />
 </LinearLayout>

@@ -7,25 +7,43 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 class DeviceAdapter(
-    private val dispositivos: List<TipoDispositivo>
-) : RecyclerView.Adapter<DeviceAdapter.ViewHolder>() {
+    private val devices: List<DeviceInfo>,
+    private val onDeviceSelected: (DeviceInfo) -> Unit
+) : RecyclerView.Adapter<DeviceAdapter.DeviceViewHolder>() {
 
-    inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvNombre: TextView = view.findViewById(R.id.tvNombreDispositivo)
-        val tvDireccion: TextView = view.findViewById(R.id.tvDireccionDispositivo)
+    private var selectedPosition = -1
+
+    inner class DeviceViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val tvName: TextView = view.findViewById(R.id.tvDeviceName)
+        val tvIp: TextView = view.findViewById(R.id.tvDeviceIp)
+        val tvType: TextView = view.findViewById(R.id.tvDeviceType)
+
+        init {
+            view.setOnClickListener {
+                val pos = adapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+                    selectedPosition = pos
+                    notifyDataSetChanged()
+                    onDeviceSelected(devices[pos])
+                }
+            }
+        }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DeviceViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_dispositivo, parent, false)
-        return ViewHolder(view)
+            .inflate(R.layout.item_device, parent, false)
+        return DeviceViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val dispositivo = dispositivos[position]
-        holder.tvNombre.text = dispositivo.nombre
-        holder.tvDireccion.text = dispositivo.direccion
+    override fun onBindViewHolder(holder: DeviceViewHolder, position: Int) {
+        val device = devices[position]
+        holder.tvName.text = device.name
+        holder.tvIp.text = device.ip
+        holder.tvType.text = device.type
+
+        holder.itemView.isSelected = (position == selectedPosition)
     }
 
-    override fun getItemCount(): Int = dispositivos.size
+    override fun getItemCount() = devices.size
 }
