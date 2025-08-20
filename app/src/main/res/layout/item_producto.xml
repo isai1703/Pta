@@ -6,17 +6,15 @@
     android:layout_height="wrap_content"
     android:gravity="center_vertical">
 
-    <!-- Imagen del producto -->
     <ImageView
         android:id="@+id/ivProducto"
         android:layout_width="64dp"
         android:layout_height="64dp"
         android:adjustViewBounds="true"
         android:scaleType="centerCrop"
-        android:contentDescription="@string/descripcion_imagen_producto"
+        android:contentDescription="Imagen Producto"
         android:src="@drawable/icon_prueba" />
 
-    <!-- Información del producto -->
     <LinearLayout
         android:orientation="vertical"
         android:layout_marginStart="8dp"
@@ -28,30 +26,37 @@
             android:id="@+id/tvNombre"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/nombre_producto_placeholder"
+            android:text="Nombre Producto"
             android:textSize="16sp"
             android:textStyle="bold"
             android:ellipsize="end"
-            android:singleLine="true" />
+            android:singleLine="true"/>
 
         <TextView
             android:id="@+id/tvPrecio"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/precio_producto_placeholder"
+            android:text="Precio"
             android:textSize="14sp"
             android:textColor="@android:color/holo_green_dark"
             android:ellipsize="end"
-            android:singleLine="true" />
+            android:singleLine="true"/>
     </LinearLayout>
 
-    <!-- Botón de acción -->
     <Button
         android:id="@+id/btnEnviarComando"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/btn_enviar"
+        android:text="Enviar"
         android:padding="6dp"
-        android:minWidth="72dp" />
+        android:minWidth="72dp"/>
+
+    <Button
+        android:id="@+id/btnEditar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Editar"
+        android:padding="6dp"
+        android:minWidth="72dp"/>
 
 </LinearLayout>

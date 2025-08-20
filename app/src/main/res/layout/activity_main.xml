@@ -12,6 +12,13 @@
         android:layout_height="wrap_content"
         android:text="Escanear dispositivos" />
 
+   <Button
+        android:id="@+id/btnAddProduct"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Agregar producto"
+        android:layout_marginBottom="8dp"/>
+
     <!-- Barra de progreso -->
     <ProgressBar
         android:id="@+id/progressBar"
