@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
+import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -13,16 +14,24 @@ import java.net.Socket
 
 object NetworkUtils {
 
-    /** Verifica si el dispositivo tiene conexión WiFi */
+    /**
+     * Verifica si el dispositivo está conectado a una red WiFi.
+     */
     fun isWifiConnected(context: Context): Boolean {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
-        return caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val capabilities =
+            connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+        return capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
     }
 
-    /** Obtiene la IP del dispositivo actual en la red WiFi */
+    /**
+     * Obtiene la dirección IP del dispositivo en formato legible (xxx.xxx.xxx.xxx).
+     */
     fun getDeviceIp(context: Context): String {
-        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val wifiManager =
+            context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+
         val ip = wifiManager.connectionInfo.ipAddress
         return String.format(
             "%d.%d.%d.%d",
@@ -33,9 +42,15 @@ object NetworkUtils {
         )
     }
 
-    /** Escanea la red local buscando dispositivos en el rango /24 */
+    /**
+     * Escanea la red local en busca de dispositivos accesibles.
+     * Revisa los puertos comunes (80, 443, 22, 1883) para identificar el tipo de dispositivo.
+     */
     suspend fun scanNetwork(context: Context): List<DeviceInfo> = withContext(Dispatchers.IO) {
-        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val wifiManager =
+            context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+
+        @Suppress("DEPRECATION")
         val ip = wifiManager.connectionInfo.ipAddress
 
         val subnet = String.format(
@@ -46,7 +61,7 @@ object NetworkUtils {
         )
 
         val devices = mutableListOf<DeviceInfo>()
-        val portsToCheck = listOf(80, 443, 22, 1883) // HTTP, HTTPS, SSH, MQTT
+        val portsToCheck = listOf(80, 443, 22, 1883)
 
         for (i in 1..254) {
             val host = "$subnet.$i"
@@ -60,18 +75,18 @@ object NetworkUtils {
                         }
                     }
                     val type = identifyDevice(openPorts)
-                    // Nombre amigable: intenta hostname; si no, usa el tipo
-                    val displayName = resolveHostName(inetAddress) ?: type
-                    devices.add(DeviceInfo(host, type, displayName))
+                    val name = inetAddress.hostName ?: host
+                    devices.add(DeviceInfo(host, type, name))
                 }
             } catch (_: IOException) {
-                // Ignorar host inaccesible/errores puntuales
             }
         }
         return@withContext devices
     }
 
-    /** Intenta conectar a un puerto para saber si está abierto */
+    /**
+     * Verifica si un puerto específico está abierto en un host.
+     */
     private fun isPortOpen(ip: String, port: Int, timeout: Int): Boolean {
         return try {
             Socket().use { socket ->
@@ -83,20 +98,15 @@ object NetworkUtils {
         }
     }
 
-    /** Identifica tipo de dispositivo según puertos */
+    /**
+     * Intenta identificar el tipo de dispositivo en función de los puertos abiertos.
+     */
     private fun identifyDevice(openPorts: List<Int>): String {
         return when {
-            22 in openPorts -> "Raspberry Pi / Linux (SSH)"
-            1883 in openPorts -> "Dispositivo IoT (MQTT)"
-            80 in openPorts || 443 in openPorts -> "ESP32 / WebServer"
+            openPorts.contains(22) -> "Raspberry Pi / Linux (SSH)"
+            openPorts.contains(1883) -> "Dispositivo IoT (MQTT)"
+            openPorts.contains(80) || openPorts.contains(443) -> "ESP32 / WebServer"
             else -> "Desconocido"
         }
-    }
-
-    /** Intenta resolver nombre de host; devuelve null si no hay */
-    private fun resolveHostName(inetAddress: InetAddress): String? {
-        val hostName = inetAddress.hostName ?: return null
-        val hostAddr = inetAddress.hostAddress ?: ""
-        return if (hostName.isNotBlank() && hostName != hostAddr) hostName else null
     }
 }

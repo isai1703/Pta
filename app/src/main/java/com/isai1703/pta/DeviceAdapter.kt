@@ -20,7 +20,7 @@ class DeviceAdapter(
 
         init {
             view.setOnClickListener {
-                val pos = adapterPosition
+                val pos = bindingAdapterPosition   // ✅ Reemplazo de adapterPosition
                 if (pos != RecyclerView.NO_POSITION) {
                     selectedPosition = pos
                     notifyDataSetChanged()
