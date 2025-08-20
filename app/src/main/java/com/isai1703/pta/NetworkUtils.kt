@@ -14,9 +14,6 @@ import java.net.Socket
 
 object NetworkUtils {
 
-    /**
-     * Verifica si el dispositivo está conectado a una red WiFi.
-     */
     fun isWifiConnected(context: Context): Boolean {
         val connectivityManager =
             context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -25,27 +22,33 @@ object NetworkUtils {
         return capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
     }
 
-    /**
-     * Obtiene la dirección IP del dispositivo en formato legible (xxx.xxx.xxx.xxx).
-     */
     fun getDeviceIp(context: Context): String {
-        val wifiManager =
-            context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-        val ip = wifiManager.connectionInfo.ipAddress
-        return String.format(
-            "%d.%d.%d.%d",
-            (ip and 0xff),
-            (ip shr 8 and 0xff),
-            (ip shr 16 and 0xff),
-            (ip shr 24 and 0xff)
-        )
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12+ usa LinkProperties
+            val network = connectivityManager.activeNetwork
+            val linkProperties = connectivityManager.getLinkProperties(network)
+            val addresses = linkProperties?.linkAddresses
+            val ipv4 = addresses?.firstOrNull { it.address is java.net.Inet4Address }
+            ipv4?.address?.hostAddress ?: "0.0.0.0"
+        } else {
+            // Versiones anteriores usan WifiInfo
+            val wifiManager =
+                context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            @Suppress("DEPRECATION")
+            val ip = wifiManager.connectionInfo.ipAddress
+            String.format(
+                "%d.%d.%d.%d",
+                (ip and 0xff),
+                (ip shr 8 and 0xff),
+                (ip shr 16 and 0xff),
+                (ip shr 24 and 0xff)
+            )
+        }
     }
 
-    /**
-     * Escanea la red local en busca de dispositivos accesibles.
-     * Revisa los puertos comunes (80, 443, 22, 1883) para identificar el tipo de dispositivo.
-     */
     suspend fun scanNetwork(context: Context): List<DeviceInfo> = withContext(Dispatchers.IO) {
         val wifiManager =
             context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
@@ -75,8 +78,7 @@ object NetworkUtils {
                         }
                     }
                     val type = identifyDevice(openPorts)
-                    val name = inetAddress.hostName ?: host
-                    devices.add(DeviceInfo(host, type, name))
+                    devices.add(DeviceInfo(host, type, ""))
                 }
             } catch (_: IOException) {
             }
@@ -84,9 +86,6 @@ object NetworkUtils {
         return@withContext devices
     }
 
-    /**
-     * Verifica si un puerto específico está abierto en un host.
-     */
     private fun isPortOpen(ip: String, port: Int, timeout: Int): Boolean {
         return try {
             Socket().use { socket ->
@@ -98,9 +97,6 @@ object NetworkUtils {
         }
     }
 
-    /**
-     * Intenta identificar el tipo de dispositivo en función de los puertos abiertos.
-     */
     private fun identifyDevice(openPorts: List<Int>): String {
         return when {
             openPorts.contains(22) -> "Raspberry Pi / Linux (SSH)"
