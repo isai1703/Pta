@@ -20,7 +20,7 @@ class DeviceAdapter(
 
         init {
             view.setOnClickListener {
-                val pos = bindingAdapterPosition   // ✅ Reemplazo de adapterPosition
+                val pos = bindingAdapterPosition // ✅ reemplazo moderno
                 if (pos != RecyclerView.NO_POSITION) {
                     selectedPosition = pos
                     notifyDataSetChanged()
@@ -42,6 +42,7 @@ class DeviceAdapter(
         holder.tvIp.text = device.ip
         holder.tvType.text = device.type
 
+        // ✅ destacar el seleccionado
         holder.itemView.isSelected = (position == selectedPosition)
     }
 

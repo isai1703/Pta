@@ -1,5 +1,6 @@
-package com.isai1703.pta.model
+package com.isai1703.pta
 
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -26,18 +27,24 @@ class ProductoAdapter(
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
         val producto = productos[position]
 
+        // Asignar valores
         holder.tvNombre.text = producto.nombre
         holder.tvPrecio.text = producto.precio
-        producto.imagenPath?.let {
-            // Cargar imagen desde ruta si existe
-            val uri = android.net.Uri.parse(it)
-            holder.ivProducto.setImageURI(uri)
-        } ?: holder.ivProducto.setImageResource(R.drawable.icon_prueba)
 
+        // Cargar imagen desde path si existe, si no usar icono por defecto
+        if (!producto.imagenPath.isNullOrEmpty()) {
+            val uri = Uri.parse(producto.imagenPath)
+            holder.ivProducto.setImageURI(uri)
+        } else {
+            holder.ivProducto.setImageResource(R.drawable.icon_prueba)
+        }
+
+        // Click en enviar comando
         holder.btnEnviarComando.setOnClickListener {
             onSendCommandClick(producto)
         }
 
+        // Click en editar producto
         holder.btnEditar.setOnClickListener {
             onEditClick(producto)
         }

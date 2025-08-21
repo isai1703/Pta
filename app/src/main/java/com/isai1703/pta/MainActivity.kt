@@ -1,7 +1,6 @@
 package com.isai1703.pta
 
 import android.Manifest
-import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
@@ -23,11 +22,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.isai1703.pta.model.Producto
-import com.isai1703.pta.model.ProductoAdapter
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -37,7 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var tvProgress: TextView
     private lateinit var btnScanDevices: Button
-    private lateinit var btnAgregarProducto: Button
+    private lateinit var btnAddProduct: Button
 
     // Datos
     private val listaProductos = mutableListOf<Producto>()
@@ -58,14 +52,13 @@ class MainActivity : AppCompatActivity() {
     private var currentDialogImageView: ImageView? = null
 
     // Selector moderno de imágenes (no deprecated)
-    private val pickImageLauncher = registerForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            pendingImageUri = it
-            currentDialogImageView?.setImageURI(it)
+    private val pickImageLauncher =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            uri?.let {
+                pendingImageUri = it
+                currentDialogImageView?.setImageURI(it)
+            }
         }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,7 +70,7 @@ class MainActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         tvProgress = findViewById(R.id.tvProgress)
         btnScanDevices = findViewById(R.id.btnScanDevices)
-        btnAgregarProducto = findViewById(R.id.btnAgregarProducto)
+        btnAddProduct = findViewById(R.id.btnAddProduct)
 
         // Verificar permisos necesarios
         checkAndRequestPermissions()
@@ -86,11 +79,11 @@ class MainActivity : AppCompatActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = ProductoAdapter(
             productos = listaProductos,
-            onSendCommandClick = { producto -> sendCommand(producto) },
-            onEditClick = { producto -> openAddEditDialog(producto) }
+            onSendCommandClick = { producto: Producto -> sendCommand(producto) },
+            onEditClick = { producto: Producto -> openAddEditDialog(producto) }
         )
 
-        // Productos de ejemplo (si tu modelo ya los trae de BD, puedes quitar esto)
+        // Productos de ejemplo
         if (listaProductos.isEmpty()) {
             listaProductos += listOf(
                 Producto(id = 1, nombre = "Producto 1", precio = "$10", imagenPath = null),
@@ -103,12 +96,16 @@ class MainActivity : AppCompatActivity() {
         recyclerViewDevices.layoutManager = LinearLayoutManager(this)
         recyclerViewDevices.adapter = DeviceAdapter(dispositivosDetectados) { selected ->
             dispositivoSeleccionado = selected
-            Toast.makeText(this, "Dispositivo seleccionado: ${selected.ip}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                "Dispositivo seleccionado: ${selected.ip}",
+                Toast.LENGTH_SHORT
+            ).show()
         }
 
         // Acciones
         btnScanDevices.setOnClickListener { scanDevices() }
-        btnAgregarProducto.setOnClickListener { openAddEditDialog(null) }
+        btnAddProduct.setOnClickListener { openAddEditDialog(null) }
     }
 
     // ---------------- Permisos dinámicos ----------------
@@ -117,28 +114,38 @@ class MainActivity : AppCompatActivity() {
 
         // Bluetooth (Android 12+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
-                != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                ) != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
 
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
-                != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.BLUETOOTH_SCAN
+                ) != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
         } else {
             // Para escaneo BLE en <12 se sigue usando ubicación
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
 
         // Lectura de imágenes según API
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
-                != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_MEDIA_IMAGES
+                ) != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
         } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
@@ -242,10 +249,12 @@ class MainActivity : AppCompatActivity() {
                         dispositivo.type.contains("Mini-PC", true) -> {
                     sendCommandWifi(dispositivo.ip, producto.nombre)
                 }
+
                 dispositivo.type.contains("STM32", true) ||
                         dispositivo.type.contains("Raspberry", true) -> {
                     sendCommandBluetooth(producto.nombre)
                 }
+
                 else -> Toast.makeText(this, "Dispositivo no soportado", Toast.LENGTH_SHORT).show()
             }
         } else {
@@ -294,26 +303,6 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }.start()
-        } ?: run {
-            Toast.makeText(this, "No hay dispositivos Bluetooth emparejados", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // ---------------- Escaneo de red ----------------
-    private fun scanDevices() {
-        progressBar.progress = 0
-        dispositivosDetectados.clear()
-        dispositivoSeleccionado = null
-        tvProgress.text = "Escaneando..."
-
-        CoroutineScope(Dispatchers.Main).launch {
-            val devices = NetworkUtils.scanNetwork(this@MainActivity)
-            dispositivosDetectados.addAll(devices)
-            recyclerViewDevices.adapter?.notifyDataSetChanged()
-
-            progressBar.max = devices.size
-            progressBar.progress = devices.size
-            tvProgress.text = "Dispositivos detectados: ${devices.size}"
         }
     }
 }
