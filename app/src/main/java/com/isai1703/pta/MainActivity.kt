@@ -3,6 +3,7 @@ package com.isai1703.pta
 import android.Manifest
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothClass
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.BroadcastReceiver
@@ -13,12 +14,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.widget.Toast
-import android.widget.EditText
+import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -44,7 +40,8 @@ class MainActivity : AppCompatActivity() {
 
     // Bluetooth
     private val bluetoothAdapter: BluetoothAdapter? by lazy {
-        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val bluetoothManager =
+            getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothManager.adapter
     }
 
@@ -74,9 +71,14 @@ class MainActivity : AppCompatActivity() {
                     val typeName = when (it.bluetoothClass?.majorDeviceClass) {
                         BluetoothClass.Device.Major.COMPUTER -> "Mini-PC"
                         BluetoothClass.Device.Major.PERIPHERAL -> "ESP32/STM32"
+                        BluetoothClass.Device.Major.PHONE -> "Raspberry"
                         else -> "Desconocido"
                     }
-                    val info = DeviceInfo(it.name ?: "Desconocido", it.address, typeName)
+                    val info = DeviceInfo(
+                        ip = it.address,
+                        type = typeName,
+                        name = it.name ?: "Desconocido"
+                    )
                     if (!dispositivosDetectados.contains(info)) {
                         dispositivosDetectados.add(info)
                         recyclerViewDevices.adapter?.notifyDataSetChanged()
@@ -122,8 +124,11 @@ class MainActivity : AppCompatActivity() {
         recyclerViewDevices.layoutManager = LinearLayoutManager(this)
         recyclerViewDevices.adapter = DeviceAdapter(dispositivosDetectados) { selected ->
             dispositivoSeleccionado = selected
-            Toast.makeText(this, "Dispositivo seleccionado: ${selected.ip}", Toast.LENGTH_SHORT)
-                .show()
+            Toast.makeText(
+                this,
+                "Dispositivo seleccionado: ${selected.ip}",
+                Toast.LENGTH_SHORT
+            ).show()
         }
 
         // Acciones
@@ -137,27 +142,37 @@ class MainActivity : AppCompatActivity() {
 
         // Bluetooth
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
-                != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                ) != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
 
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
-                != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.BLUETOOTH_SCAN
+                ) != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
         } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
 
         // Lectura imágenes
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
-                != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_MEDIA_IMAGES
+                ) != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
         } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
@@ -224,7 +239,8 @@ class MainActivity : AppCompatActivity() {
                     listaProductos.add(nuevo)
                 } else {
                     producto.nombre = nombre.ifEmpty { producto.nombre }
-                    producto.precio = if (precio.isEmpty()) producto.precio else precio
+                    producto.precio =
+                        if (precio.isEmpty()) producto.precio else precio
                     producto.imagenPath = imagenPath ?: producto.imagenPath
                 }
 
@@ -237,7 +253,6 @@ class MainActivity : AppCompatActivity() {
                 pendingImageUri = null
             }
             .create()
-
         dialog.show()
     }
 
@@ -247,18 +262,25 @@ class MainActivity : AppCompatActivity() {
         if (dispositivo != null) {
             when {
                 dispositivo.type.contains("ESP32", true) ||
-                        dispositivo.type.contains("Mini-PC", true) -> sendCommandWifi(
-                    dispositivo.ip,
-                    producto.nombre
-                )
+                        dispositivo.type.contains("Mini-PC", true) ->
+                    sendCommandWifi(dispositivo.ip, producto.nombre)
 
                 dispositivo.type.contains("STM32", true) ||
-                        dispositivo.type.contains("Raspberry", true) -> sendCommandBluetooth(producto.nombre)
+                        dispositivo.type.contains("Raspberry", true) ->
+                    sendCommandBluetooth(producto.nombre)
 
-                else -> Toast.makeText(this, "Dispositivo no soportado", Toast.LENGTH_SHORT).show()
+                else -> Toast.makeText(
+                    this,
+                    "Dispositivo no soportado",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         } else {
-            Toast.makeText(this, "No hay dispositivo seleccionado", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                "No hay dispositivo seleccionado",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -271,9 +293,13 @@ class MainActivity : AppCompatActivity() {
                 connection.readTimeout = 2000
                 connection.requestMethod = "GET"
                 val responseCode = connection.responseCode
+
                 runOnUiThread {
-                    Toast.makeText(this, "Comando enviado por WiFi: $responseCode", Toast.LENGTH_SHORT)
-                        .show()
+                    Toast.makeText(
+                        this,
+                        "Comando enviado por WiFi: $responseCode",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             } catch (e: Exception) {
                 runOnUiThread {
@@ -287,21 +313,28 @@ class MainActivity : AppCompatActivity() {
         bluetoothAdapter?.bondedDevices?.firstOrNull()?.let { device: BluetoothDevice ->
             Thread {
                 try {
-                    val socket = device.createRfcommSocketToServiceRecord(device.uuids.first().uuid)
+                    val socket =
+                        device.createRfcommSocketToServiceRecord(java.util.UUID.randomUUID())
                     socket.connect()
-                    val outStream = socket.outputStream
-                    outStream.write(comando.toByteArray())
-                    outStream.flush()
+                    val outputStream = socket.outputStream
+                    outputStream.write(comando.toByteArray())
+                    outputStream.flush()
                     socket.close()
                     runOnUiThread {
-                        Toast.makeText(this, "Comando enviado por Bluetooth", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this,
+                            "Comando enviado por Bluetooth",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
-                        Toast.makeText(this, "Error Bluetooth: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Error BT: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
             }.start()
+        } ?: run {
+            Toast.makeText(this, "No hay dispositivos BT emparejados", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -309,31 +342,23 @@ class MainActivity : AppCompatActivity() {
     private fun scanDevices() {
         dispositivosDetectados.clear()
         recyclerViewDevices.adapter?.notifyDataSetChanged()
-        progressBar.progress = 0
-        tvProgress.text = "Escaneando..."
 
-        // Registrar receptor para escaneo Bluetooth
+        if (bluetoothAdapter?.isDiscovering == true) {
+            bluetoothAdapter.cancelDiscovery()
+        }
+
         val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
         registerReceiver(bluetoothReceiver, filter)
+
         bluetoothAdapter?.startDiscovery()
-
-        // Ejemplo de escaneo WiFi/HTTP (simulado)
-        dispositivosDetectados += listOf(
-            DeviceInfo("ESP32 Demo", "192.168.1.100", "ESP32"),
-            DeviceInfo("Raspberry Pi Demo", "192.168.1.101", "Raspberry")
-        )
-
-        recyclerViewDevices.adapter?.notifyDataSetChanged()
-        tvProgress.text = "Escaneo completado: ${dispositivosDetectados.size} dispositivos"
-        progressBar.progress = 100
+        Toast.makeText(this, "Escaneando dispositivos Bluetooth...", Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         try {
             unregisterReceiver(bluetoothReceiver)
-        } catch (e: Exception) {
-            // No hacer nada si ya no estaba registrado
+        } catch (_: Exception) {
         }
     }
 }
