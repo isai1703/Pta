@@ -1,10 +1,14 @@
 package com.isai1703.pta
 
 import android.Manifest
+import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -47,11 +51,11 @@ class MainActivity : AppCompatActivity() {
     // Permisos
     private val REQUEST_CODE_PERMISSIONS = 1001
 
-    // Estado para el selector de imágenes del diálogo
+    // Estado selector de imágenes
     private var pendingImageUri: Uri? = null
     private var currentDialogImageView: ImageView? = null
 
-    // Selector moderno de imágenes (no deprecated)
+    // Selector moderno de imágenes
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let {
@@ -60,11 +64,33 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+    // ---------------- BroadcastReceiver para escaneo Bluetooth ----------------
+    private val bluetoothReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == BluetoothDevice.ACTION_FOUND) {
+                val device: BluetoothDevice? =
+                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                device?.let {
+                    val typeName = when (it.bluetoothClass?.majorDeviceClass) {
+                        BluetoothClass.Device.Major.COMPUTER -> "Mini-PC"
+                        BluetoothClass.Device.Major.PERIPHERAL -> "ESP32/STM32"
+                        else -> "Desconocido"
+                    }
+                    val info = DeviceInfo(it.name ?: "Desconocido", it.address, typeName)
+                    if (!dispositivosDetectados.contains(info)) {
+                        dispositivosDetectados.add(info)
+                        recyclerViewDevices.adapter?.notifyDataSetChanged()
+                    }
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Referencias UI
+        // UI
         recyclerView = findViewById(R.id.recyclerView)
         recyclerViewDevices = findViewById(R.id.recyclerViewDevices)
         progressBar = findViewById(R.id.progressBar)
@@ -72,18 +98,18 @@ class MainActivity : AppCompatActivity() {
         btnScanDevices = findViewById(R.id.btnScanDevices)
         btnAddProduct = findViewById(R.id.btnAddProduct)
 
-        // Verificar permisos necesarios
+        // Verificar permisos
         checkAndRequestPermissions()
 
-        // Lista de productos
+        // RecyclerView productos
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = ProductoAdapter(
             productos = listaProductos,
-            onSendCommandClick = { producto: Producto -> sendCommand(producto) },
-            onEditClick = { producto: Producto -> openAddEditDialog(producto) }
+            onSendCommandClick = { producto -> sendCommand(producto) },
+            onEditClick = { producto -> openAddEditDialog(producto) }
         )
 
-        // Productos de ejemplo
+        // Productos ejemplo
         if (listaProductos.isEmpty()) {
             listaProductos += listOf(
                 Producto(id = 1, nombre = "Producto 1", precio = "$10", imagenPath = null),
@@ -92,15 +118,12 @@ class MainActivity : AppCompatActivity() {
             recyclerView.adapter?.notifyDataSetChanged()
         }
 
-        // Lista de dispositivos
+        // RecyclerView dispositivos
         recyclerViewDevices.layoutManager = LinearLayoutManager(this)
         recyclerViewDevices.adapter = DeviceAdapter(dispositivosDetectados) { selected ->
             dispositivoSeleccionado = selected
-            Toast.makeText(
-                this,
-                "Dispositivo seleccionado: ${selected.ip}",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(this, "Dispositivo seleccionado: ${selected.ip}", Toast.LENGTH_SHORT)
+                .show()
         }
 
         // Acciones
@@ -112,40 +135,29 @@ class MainActivity : AppCompatActivity() {
     private fun checkAndRequestPermissions() {
         val permissionsToRequest = mutableListOf<String>()
 
-        // Bluetooth (Android 12+)
+        // Bluetooth
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+                != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
 
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_SCAN
-                ) != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN)
+                != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
         } else {
-            // Para escaneo BLE en <12 se sigue usando ubicación
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
 
-        // Lectura de imágenes según API
+        // Lectura imágenes
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_MEDIA_IMAGES
-                ) != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
+                != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
         } else {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                ) != PackageManager.PERMISSION_GRANTED
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
@@ -159,9 +171,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
@@ -185,23 +195,16 @@ class MainActivity : AppCompatActivity() {
         val ivProducto = dialogView.findViewById<ImageView>(R.id.ivProductoDialog)
         val btnSeleccionarImagen = dialogView.findViewById<Button>(R.id.btnSeleccionarImagen)
 
-        // Cargar datos si es edición
         producto?.let {
             etNombre.setText(it.nombre)
             etPrecio.setText(it.precio)
-            it.imagenPath?.let { path ->
-                ivProducto.setImageURI(Uri.parse(path))
-            }
+            it.imagenPath?.let { path -> ivProducto.setImageURI(Uri.parse(path)) }
         }
 
-        // Preparar estado para el selector
         currentDialogImageView = ivProducto
         pendingImageUri = producto?.imagenPath?.let { Uri.parse(it) }
 
-        btnSeleccionarImagen.setOnClickListener {
-            // Abrir selector moderno de imágenes
-            pickImageLauncher.launch("image/*")
-        }
+        btnSeleccionarImagen.setOnClickListener { pickImageLauncher.launch("image/*") }
 
         val dialog = AlertDialog.Builder(this)
             .setTitle(if (producto == null) "Agregar Producto" else "Editar Producto")
@@ -226,8 +229,6 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 recyclerView.adapter?.notifyDataSetChanged()
-
-                // Limpiar estado temporal del diálogo
                 currentDialogImageView = null
                 pendingImageUri = null
             }
@@ -246,14 +247,13 @@ class MainActivity : AppCompatActivity() {
         if (dispositivo != null) {
             when {
                 dispositivo.type.contains("ESP32", true) ||
-                        dispositivo.type.contains("Mini-PC", true) -> {
-                    sendCommandWifi(dispositivo.ip, producto.nombre)
-                }
+                        dispositivo.type.contains("Mini-PC", true) -> sendCommandWifi(
+                    dispositivo.ip,
+                    producto.nombre
+                )
 
                 dispositivo.type.contains("STM32", true) ||
-                        dispositivo.type.contains("Raspberry", true) -> {
-                    sendCommandBluetooth(producto.nombre)
-                }
+                        dispositivo.type.contains("Raspberry", true) -> sendCommandBluetooth(producto.nombre)
 
                 else -> Toast.makeText(this, "Dispositivo no soportado", Toast.LENGTH_SHORT).show()
             }
@@ -271,9 +271,9 @@ class MainActivity : AppCompatActivity() {
                 connection.readTimeout = 2000
                 connection.requestMethod = "GET"
                 val responseCode = connection.responseCode
-
                 runOnUiThread {
-                    Toast.makeText(this, "Comando enviado por WiFi: $responseCode", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Comando enviado por WiFi: $responseCode", Toast.LENGTH_SHORT)
+                        .show()
                 }
             } catch (e: Exception) {
                 runOnUiThread {
@@ -293,7 +293,6 @@ class MainActivity : AppCompatActivity() {
                     outStream.write(comando.toByteArray())
                     outStream.flush()
                     socket.close()
-
                     runOnUiThread {
                         Toast.makeText(this, "Comando enviado por Bluetooth", Toast.LENGTH_SHORT).show()
                     }
@@ -303,6 +302,38 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }.start()
+        }
+    }
+
+    // ---------------- Escaneo de dispositivos ----------------
+    private fun scanDevices() {
+        dispositivosDetectados.clear()
+        recyclerViewDevices.adapter?.notifyDataSetChanged()
+        progressBar.progress = 0
+        tvProgress.text = "Escaneando..."
+
+        // Registrar receptor para escaneo Bluetooth
+        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+        registerReceiver(bluetoothReceiver, filter)
+        bluetoothAdapter?.startDiscovery()
+
+        // Ejemplo de escaneo WiFi/HTTP (simulado)
+        dispositivosDetectados += listOf(
+            DeviceInfo("ESP32 Demo", "192.168.1.100", "ESP32"),
+            DeviceInfo("Raspberry Pi Demo", "192.168.1.101", "Raspberry")
+        )
+
+        recyclerViewDevices.adapter?.notifyDataSetChanged()
+        tvProgress.text = "Escaneo completado: ${dispositivosDetectados.size} dispositivos"
+        progressBar.progress = 100
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(bluetoothReceiver)
+        } catch (e: Exception) {
+            // No hacer nada si ya no estaba registrado
         }
     }
 }
