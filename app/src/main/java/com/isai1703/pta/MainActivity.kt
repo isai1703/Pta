@@ -1,7 +1,6 @@
 package com.isai1703.pta
 
 import android.Manifest
-import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothClass
 import android.bluetooth.BluetoothDevice
@@ -22,6 +21,8 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import java.io.IOException
+import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
 
@@ -67,19 +68,33 @@ class MainActivity : AppCompatActivity() {
             if (intent?.action == BluetoothDevice.ACTION_FOUND) {
                 val device: BluetoothDevice? =
                     intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+
                 device?.let {
-                    val typeName = when (it.bluetoothClass?.majorDeviceClass) {
+                    // En Android 12+ leer bluetoothClass / name requiere BLUETOOTH_CONNECT
+                    val hasBtConnect =
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                            ContextCompat.checkSelfPermission(
+                                this@MainActivity,
+                                Manifest.permission.BLUETOOTH_CONNECT
+                            ) == PackageManager.PERMISSION_GRANTED
+                        else true
+
+                    val majorClass = if (hasBtConnect) it.bluetoothClass?.majorDeviceClass else null
+                    val typeName = when (majorClass) {
                         BluetoothClass.Device.Major.COMPUTER -> "Mini-PC"
                         BluetoothClass.Device.Major.PERIPHERAL -> "ESP32/STM32"
                         BluetoothClass.Device.Major.PHONE -> "Raspberry"
                         else -> "Desconocido"
                     }
+
+                    val dName = if (hasBtConnect) it.name else null
                     val info = DeviceInfo(
-                        ip = it.address,
+                        ip = it.address,               // aquí usamos la MAC como "ip" para BT clásico
                         type = typeName,
-                        name = it.name ?: "Desconocido"
+                        name = dName ?: "Desconocido"
                     )
-                    if (!dispositivosDetectados.contains(info)) {
+
+                    if (!dispositivosDetectados.any { d -> d.ip == info.ip }) {
                         dispositivosDetectados.add(info)
                         recyclerViewDevices.adapter?.notifyDataSetChanged()
                     }
@@ -88,6 +103,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // ---------------- Ciclo de vida ----------------
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -134,6 +150,65 @@ class MainActivity : AppCompatActivity() {
         // Acciones
         btnScanDevices.setOnClickListener { scanDevices() }
         btnAddProduct.setOnClickListener { openAddEditDialog(null) }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Cancelar discovery para conservar batería y recursos
+        val adapter = bluetoothAdapter
+        if (adapter != null && adapter.isDiscovering) {
+            try { adapter.cancelDiscovery() } catch (_: SecurityException) {}
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
+    }
+
+    // ---------------- Escaneo Bluetooth ----------------
+    private fun scanDevices() {
+        val adapter = bluetoothAdapter
+        if (adapter == null) {
+            Toast.makeText(this, "Bluetooth no disponible", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Permisos necesarios para escanear
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val okScan = ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
+            if (!okScan) {
+                Toast.makeText(this, "Falta permiso BLUETOOTH_SCAN", Toast.LENGTH_SHORT).show()
+                checkAndRequestPermissions()
+                return
+            }
+        } else {
+            val okLoc = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            if (!okLoc) {
+                Toast.makeText(this, "Falta permiso de ubicación para escanear BT", Toast.LENGTH_SHORT).show()
+                checkAndRequestPermissions()
+                return
+            }
+        }
+
+        dispositivosDetectados.clear()
+        recyclerViewDevices.adapter?.notifyDataSetChanged()
+
+        if (adapter.isDiscovering) {
+            try { adapter.cancelDiscovery() } catch (_: SecurityException) {}
+        }
+
+        // Registrar receiver (si ya estaba registrado, lo atrapamos en try/catch)
+        try {
+            registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
+        } catch (_: Exception) { /* ya registrado */ }
+
+        try {
+            adapter.startDiscovery()
+            Toast.makeText(this, "Escaneando dispositivos Bluetooth...", Toast.LENGTH_SHORT).show()
+        } catch (_: SecurityException) {
+            Toast.makeText(this, "Permiso insuficiente para iniciar escaneo", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // ---------------- Permisos dinámicos ----------------
@@ -239,8 +314,7 @@ class MainActivity : AppCompatActivity() {
                     listaProductos.add(nuevo)
                 } else {
                     producto.nombre = nombre.ifEmpty { producto.nombre }
-                    producto.precio =
-                        if (precio.isEmpty()) producto.precio else precio
+                    producto.precio = if (precio.isEmpty()) producto.precio else precio
                     producto.imagenPath = imagenPath ?: producto.imagenPath
                 }
 
@@ -293,72 +367,94 @@ class MainActivity : AppCompatActivity() {
                 connection.readTimeout = 2000
                 connection.requestMethod = "GET"
                 val responseCode = connection.responseCode
-
                 runOnUiThread {
                     Toast.makeText(
                         this,
-                        "Comando enviado por WiFi: $responseCode",
+                        "Respuesta WiFi: $responseCode",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
+                connection.disconnect()
             } catch (e: Exception) {
                 runOnUiThread {
-                    Toast.makeText(this, "Error WiFi: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        "Error enviando comando WiFi: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         }.start()
     }
 
+    /**
+     * Envío real por Bluetooth RFCOMM (SPP) usando el primer dispositivo emparejado,
+     * o si hay un dispositivo seleccionado en la lista, intenta emparejado con esa MAC.
+     * Requiere BLUETOOTH_CONNECT en Android 12+.
+     */
     private fun sendCommandBluetooth(comando: String) {
-        bluetoothAdapter?.bondedDevices?.firstOrNull()?.let { device: BluetoothDevice ->
-            Thread {
-                try {
-                    val socket =
-                        device.createRfcommSocketToServiceRecord(java.util.UUID.randomUUID())
-                    socket.connect()
-                    val outputStream = socket.outputStream
-                    outputStream.write(comando.toByteArray())
-                    outputStream.flush()
-                    socket.close()
-                    runOnUiThread {
-                        Toast.makeText(
-                            this,
-                            "Comando enviado por Bluetooth",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                } catch (e: Exception) {
-                    runOnUiThread {
-                        Toast.makeText(this, "Error BT: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
+        val adapter = bluetoothAdapter
+        if (adapter == null) {
+            Toast.makeText(this, "Bluetooth no disponible", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            Toast.makeText(this, "Falta permiso BLUETOOTH_CONNECT", Toast.LENGTH_SHORT).show()
+            checkAndRequestPermissions()
+            return
+        }
+
+        // Cancelar discovery para no interferir con la conexión
+        if (adapter.isDiscovering) {
+            try { adapter.cancelDiscovery() } catch (_: SecurityException) {}
+        }
+
+        // Elegir el dispositivo: si seleccionaste uno de la lista (MAC), úsalo; si no, el primero emparejado.
+        val macSeleccionada = dispositivoSeleccionado?.ip
+        val bonded = try { adapter.bondedDevices } catch (_: SecurityException) { emptySet<BluetoothDevice>() }
+        val target: BluetoothDevice? = when {
+            !macSeleccionada.isNullOrEmpty() -> bonded.firstOrNull { it.address == macSeleccionada }
+            else -> bonded.firstOrNull()
+        }
+
+        if (target == null) {
+            Toast.makeText(this, "No hay dispositivos Bluetooth emparejados", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        Thread {
+            val sppUuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+            var socket: android.bluetooth.BluetoothSocket? = null
+            try {
+                socket = target.createRfcommSocketToServiceRecord(sppUuid)
+                socket.connect()
+
+                val out = socket.outputStream
+                out.write(comando.toByteArray(Charsets.UTF_8))
+                out.flush()
+
+                runOnUiThread {
+                    Toast.makeText(this, "Comando BT enviado", Toast.LENGTH_SHORT).show()
                 }
-            }.start()
-        } ?: run {
-            Toast.makeText(this, "No hay dispositivos BT emparejados", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // ---------------- Escaneo de dispositivos ----------------
-    private fun scanDevices() {
-        dispositivosDetectados.clear()
-        recyclerViewDevices.adapter?.notifyDataSetChanged()
-
-        if (bluetoothAdapter?.isDiscovering == true) {
-            bluetoothAdapter.cancelDiscovery()
-        }
-
-        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
-        registerReceiver(bluetoothReceiver, filter)
-
-        bluetoothAdapter?.startDiscovery()
-        Toast.makeText(this, "Escaneando dispositivos Bluetooth...", Toast.LENGTH_SHORT).show()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        try {
-            unregisterReceiver(bluetoothReceiver)
-        } catch (_: Exception) {
-        }
+            } catch (se: SecurityException) {
+                runOnUiThread {
+                    Toast.makeText(this, "Permiso insuficiente para conectar BT", Toast.LENGTH_SHORT).show()
+                }
+            } catch (io: IOException) {
+                runOnUiThread {
+                    Toast.makeText(this, "Error BT: ${io.message}", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this, "Error BT: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
+                try { socket?.close() } catch (_: Exception) {}
+            }
+        }.start()
     }
 }
