@@ -81,7 +81,6 @@ class MainActivity : AppCompatActivity() {
                     }
 
                 device?.let {
-                    // En Android 12+ leer bluetoothClass / name requiere BLUETOOTH_CONNECT
                     val hasBtConnect =
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                             ContextCompat.checkSelfPermission(
@@ -100,7 +99,7 @@ class MainActivity : AppCompatActivity() {
 
                     val dName = if (hasBtConnect) it.name else null
                     val info = DeviceInfo(
-                        ip = it.address,           // MAC como "ip" para BT clásico
+                        ip = it.address,
                         type = typeName,
                         name = dName ?: "Desconocido"
                     )
@@ -181,17 +180,15 @@ class MainActivity : AppCompatActivity() {
         dispositivosDetectados.clear()
         recyclerViewDevices.adapter?.notifyDataSetChanged()
 
-        // Progreso UI
         progressBar.isIndeterminate = true
         tvProgress.text = "Escaneando Bluetooth y red local..."
 
-        // 1) Bluetooth
         scanBluetooth()
 
-        // 2) Wi-Fi (profundo)
         CoroutineScope(Dispatchers.Main).launch {
+            // Aquí pasamos la subnet como String
             val wifiFound = withContext(Dispatchers.IO) {
-                NetworkScanner.scanSubnetDeep(this@MainActivity)
+                NetworkScanner.scanSubnetDeep("192.168.1") // <-- ajustar a tu red
             }
             mergeWifiResults(wifiFound)
             progressBar.isIndeterminate = false
@@ -205,30 +202,19 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Permisos
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val okScan = ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
-            if (!okScan) {
-                Toast.makeText(this, "Falta permiso BLUETOOTH_SCAN", Toast.LENGTH_SHORT).show()
-                checkAndRequestPermissions()
-                return
-            }
+            if (!okScan) { checkAndRequestPermissions(); return }
         } else {
             val okLoc = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            if (!okLoc) {
-                Toast.makeText(this, "Falta permiso de ubicación para escanear BT", Toast.LENGTH_SHORT).show()
-                checkAndRequestPermissions()
-                return
-            }
+            if (!okLoc) { checkAndRequestPermissions(); return }
         }
 
         if (adapter.isDiscovering) {
             try { adapter.cancelDiscovery() } catch (_: SecurityException) {}
         }
 
-        try {
-            registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
-        } catch (_: Exception) { /* ya registrado */ }
+        try { registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND)) } catch (_: Exception) {}
 
         try {
             adapter.startDiscovery()
@@ -241,7 +227,6 @@ class MainActivity : AppCompatActivity() {
     private fun mergeWifiResults(list: List<NetDevice>) {
         var added = 0
         list.forEach { net ->
-            // Normalizamos tipos a los que ya usas para compatibilidad
             val normType = when {
                 net.type.contains("ESP32", true) -> "ESP32"
                 net.type.contains("Raspberry", true) -> "Raspberry"
@@ -249,11 +234,7 @@ class MainActivity : AppCompatActivity() {
                 net.type.equals("Gateway", true) -> "Mini-PC"
                 else -> net.type
             }
-            val info = DeviceInfo(
-                ip = net.ip,
-                type = normType,
-                name = net.name
-            )
+            val info = DeviceInfo(ip = net.ip, type = normType, name = net.name)
             if (!dispositivosDetectados.any { d -> d.ip == info.ip }) {
                 dispositivosDetectados.add(info)
                 added++
@@ -266,51 +247,26 @@ class MainActivity : AppCompatActivity() {
     private fun checkAndRequestPermissions() {
         val permissionsToRequest = mutableListOf<String>()
 
-        // Bluetooth
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(
-                    this, Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED
-            ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
-
-            if (ContextCompat.checkSelfPermission(
-                    this, Manifest.permission.BLUETOOTH_SCAN
-                ) != PackageManager.PERMISSION_GRANTED
-            ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED)
+                permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED)
+                permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
         } else {
-            if (ContextCompat.checkSelfPermission(
-                    this, Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED
-            ) permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+                permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
 
-        // Lectura imágenes
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this, Manifest.permission.READ_MEDIA_IMAGES
-                ) != PackageManager.PERMISSION_GRANTED
-            ) permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED)
+                permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
         } else {
-            if (ContextCompat.checkSelfPermission(
-                    this, Manifest.permission.READ_EXTERNAL_STORAGE
-                ) != PackageManager.PERMISSION_GRANTED
-            ) permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-
-        // Red
-        if (ContextCompat.checkSelfPermission(
-                this, Manifest.permission.INTERNET
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // INTERNET es normal-permission; no se pide en runtime, solo en manifest.
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
+                permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
         if (permissionsToRequest.isNotEmpty()) {
-            ActivityCompat.requestPermissions(
-                this,
-                permissionsToRequest.toTypedArray(),
-                REQUEST_CODE_PERMISSIONS
-            )
+            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), REQUEST_CODE_PERMISSIONS)
         }
     }
 
@@ -319,15 +275,10 @@ class MainActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED })
                 Toast.makeText(this, "Permisos concedidos", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(
-                    this,
-                    "Algunos permisos fueron denegados, ciertas funciones podrían no funcionar",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
+            else
+                Toast.makeText(this, "Algunos permisos fueron denegados", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -368,8 +319,7 @@ class MainActivity : AppCompatActivity() {
                     listaProductos.add(nuevo)
                 } else {
                     producto.nombre = nombre.ifEmpty { producto.nombre }
-                    producto.precio =
-                        if (precio.isEmpty()) producto.precio else precio
+                    producto.precio = if (precio.isEmpty()) producto.precio else precio
                     producto.imagenPath = imagenPath ?: producto.imagenPath
                 }
 
@@ -390,28 +340,18 @@ class MainActivity : AppCompatActivity() {
         val dispositivo = dispositivoSeleccionado
         if (dispositivo != null) {
             when {
-                // Wi-Fi / IP
                 dispositivo.type.contains("ESP32", true) ||
                 dispositivo.type.contains("Mini-PC", true) ||
                 dispositivo.type.contains("Raspberry", true) ->
                     sendCommandWifi(dispositivo.ip, producto.nombre)
 
-                // Bluetooth clásico
                 dispositivo.type.contains("STM32", true) ->
                     sendCommandBluetooth(producto.nombre)
 
-                else -> Toast.makeText(
-                    this,
-                    "Dispositivo no soportado",
-                    Toast.LENGTH_SHORT
-                ).show()
+                else -> Toast.makeText(this, "Dispositivo no soportado", Toast.LENGTH_SHORT).show()
             }
         } else {
-            Toast.makeText(
-                this,
-                "No hay dispositivo seleccionado",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(this, "No hay dispositivo seleccionado", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -425,27 +365,18 @@ class MainActivity : AppCompatActivity() {
                 connection.requestMethod = "GET"
                 val responseCode = connection.responseCode
                 runOnUiThread {
-                    Toast.makeText(
-                        this,
-                        "Respuesta WiFi: $responseCode",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(this, "Respuesta WiFi: $responseCode", Toast.LENGTH_SHORT).show()
                 }
                 connection.disconnect()
             } catch (e: Exception) {
                 runOnUiThread {
-                    Toast.makeText(
-                        this,
-                        "Error enviando comando WiFi: ${e.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(this, "Error enviando comando WiFi: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }.start()
     }
 
     private fun sendCommandBluetooth(comando: String) {
-        // RFCOMM/Socket real con SPP UUID
         val sppUuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         val adapter = bluetoothAdapter ?: run {
             Toast.makeText(this, "Bluetooth no disponible", Toast.LENGTH_SHORT).show()
@@ -454,11 +385,10 @@ class MainActivity : AppCompatActivity() {
 
         @Suppress("MissingPermission")
         val device: BluetoothDevice = try {
-            adapter.bondedDevices.firstOrNull()
-                ?: run {
-                    Toast.makeText(this, "No hay dispositivos BT emparejados", Toast.LENGTH_SHORT).show()
-                    return
-                }
+            adapter.bondedDevices.firstOrNull() ?: run {
+                Toast.makeText(this, "No hay dispositivos BT emparejados", Toast.LENGTH_SHORT).show()
+                return
+            }
         } catch (_: SecurityException) {
             Toast.makeText(this, "Permiso BLUETOOTH_CONNECT requerido", Toast.LENGTH_SHORT).show()
             return
