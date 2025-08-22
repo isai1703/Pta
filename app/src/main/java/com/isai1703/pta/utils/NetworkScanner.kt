@@ -1,6 +1,5 @@
 package com.isai1703.pta.utils
 
-import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -21,8 +20,8 @@ object NetworkScanner {
     private const val CONNECT_TIMEOUT_MS = 550
     private const val HTTP_READ_TIMEOUT_MS = 700
 
-    suspend fun scanSubnetDeep(): List<NetDevice> = withContext(Dispatchers.IO) {
-        val subnet = getLocalSubnet() ?: return@withContext emptyList()
+    // Versión que recibe subred (compatible con MainActivity)
+    suspend fun scanSubnetDeep(subnet: String): List<NetDevice> = withContext(Dispatchers.IO) {
         val ips = expandSubnet(subnet)
         val chunks = ips.chunked(32)
         val results = mutableListOf<NetDevice>()
@@ -32,6 +31,12 @@ object NetworkScanner {
             results += deferred.awaitAll().filterNotNull()
         }
         results
+    }
+
+    // Mantener la versión original sin parámetros
+    suspend fun scanSubnetDeep(): List<NetDevice> = withContext(Dispatchers.IO) {
+        val subnet = getLocalSubnet()?.base ?: return@withContext emptyList()
+        scanSubnetDeep(subnet)
     }
 
     private fun probeHost(ip: String): NetDevice? {
@@ -59,6 +64,7 @@ object NetworkScanner {
         }
 
         if (!open) return null
+
         return NetDevice(
             ip = ip,
             name = guessedName ?: reverseDns(ip) ?: "Dispositivo",
@@ -74,8 +80,11 @@ object NetworkScanner {
                 readTimeout = HTTP_READ_TIMEOUT_MS
                 requestMethod = "GET"
             }
+
             val server = conn.getHeaderField("Server") ?: ""
-            val body = try { BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() } } catch (_: Exception) { "" }
+            val body = try { 
+                BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() } 
+            } catch (_: Exception) { "" }
             conn.disconnect()
 
             val type = when {
@@ -85,9 +94,13 @@ object NetworkScanner {
                 else -> "Mini-PC"
             }
 
-            val name = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE).find(body)?.groupValues?.getOrNull(1)
+            val name = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
+                .find(body)?.groupValues?.getOrNull(1)
+
             name to type
-        } catch (_: Exception) { null to null }
+        } catch (_: Exception) {
+            null to null
+        }
     }
 
     private fun reverseDns(ip: String): String? = try {
@@ -100,7 +113,10 @@ object NetworkScanner {
         return if (ip.endsWith(".1")) "Gateway" else "Mini-PC"
     }
 
-    private data class Subnet(val base: String, val maskBits: Int)
+    private fun expandSubnet(subnetBase: String): List<String> {
+        val base = subnetBase.trimEnd('.')
+        return (1..254).map { "$base.$it" }
+    }
 
     private fun getLocalSubnet(): Subnet? {
         val nifs = NetworkInterface.getNetworkInterfaces() ?: return null
@@ -108,7 +124,7 @@ object NetworkScanner {
             if (!ni.isUp || ni.isLoopback) continue
             for (addr in Collections.list(ni.inetAddresses)) {
                 if (addr is java.net.Inet4Address) {
-                    val ip = addr.hostAddress
+                    val ip = addr.hostAddress ?: continue
                     if (ip.startsWith("10.") || ip.startsWith("172.") || ip.startsWith("192.168.")) {
                         return Subnet(base = ip.substringBeforeLast("."), maskBits = 24)
                     }
@@ -118,8 +134,5 @@ object NetworkScanner {
         return null
     }
 
-    private fun expandSubnet(subnet: Subnet): List<String> {
-        val base = subnet.base
-        return (1..254).map { "$base.$it" }
-    }
+    private data class Subnet(val base: String, val maskBits: Int)
 }
