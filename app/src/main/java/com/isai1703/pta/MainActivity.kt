@@ -186,9 +186,8 @@ class MainActivity : AppCompatActivity() {
         scanBluetooth()
 
         CoroutineScope(Dispatchers.Main).launch {
-            // Aquí pasamos la subnet como String
             val wifiFound = withContext(Dispatchers.IO) {
-                NetworkScanner.scanSubnetDeep("192.168.1") // <-- ajustar a tu red
+                NetworkScanner.scanSubnetDeep() // <-- ahora sin argumentos
             }
             mergeWifiResults(wifiFound)
             progressBar.isIndeterminate = false
