@@ -1,14 +1,8 @@
 package com.isai1703.pta
 
 import android.Manifest
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothClass
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.bluetooth.*
+import android.content.*
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -21,11 +15,11 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.isai1703.pta.utils.NetworkScanner
 import com.isai1703.pta.utils.NetDevice
+import com.isai1703.pta.utils.NetworkScanner
 import kotlinx.coroutines.*
 import java.io.IOException
-import java.util.UUID
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
@@ -44,19 +38,16 @@ class MainActivity : AppCompatActivity() {
 
     // Bluetooth
     private val bluetoothAdapter: BluetoothAdapter? by lazy {
-        val bluetoothManager =
-            getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothManager.adapter
     }
 
     // Permisos
     private val REQUEST_CODE_PERMISSIONS = 1001
 
-    // Estado selector de imágenes
+    // Selector de imágenes
     private var pendingImageUri: Uri? = null
     private var currentDialogImageView: ImageView? = null
-
-    // Selector moderno de imágenes
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let {
@@ -69,25 +60,18 @@ class MainActivity : AppCompatActivity() {
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == BluetoothDevice.ACTION_FOUND) {
-                val device: BluetoothDevice? =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(
-                            BluetoothDevice.EXTRA_DEVICE,
-                            BluetoothDevice::class.java
-                        )
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                    }
+                val device: BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                }
 
                 device?.let {
-                    val hasBtConnect =
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-                            ContextCompat.checkSelfPermission(
-                                this@MainActivity,
-                                Manifest.permission.BLUETOOTH_CONNECT
-                            ) == PackageManager.PERMISSION_GRANTED
-                        else true
+                    val hasBtConnect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT) ==
+                                PackageManager.PERMISSION_GRANTED
+                    } else true
 
                     val majorClass = if (hasBtConnect) it.bluetoothClass?.majorDeviceClass else null
                     val typeName = when (majorClass) {
@@ -107,6 +91,10 @@ class MainActivity : AppCompatActivity() {
                     if (!dispositivosDetectados.any { d -> d.ip == info.ip }) {
                         dispositivosDetectados.add(info)
                         recyclerViewDevices.adapter?.notifyDataSetChanged()
+                        // Seleccion automática si no hay seleccionado
+                        if (dispositivoSeleccionado == null) {
+                            dispositivoSeleccionado = info
+                        }
                     }
                 }
             }
@@ -118,7 +106,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // UI
         recyclerView = findViewById(R.id.recyclerView)
         recyclerViewDevices = findViewById(R.id.recyclerViewDevices)
         progressBar = findViewById(R.id.progressBar)
@@ -137,7 +124,7 @@ class MainActivity : AppCompatActivity() {
             onEditClick = { producto -> openAddEditDialog(producto) }
         )
 
-        // Productos ejemplo
+        // Inicialización de productos de ejemplo
         if (listaProductos.isEmpty()) {
             listaProductos += listOf(
                 Producto(id = 1, nombre = "Producto 1", precio = "$10", imagenPath = null),
@@ -150,11 +137,7 @@ class MainActivity : AppCompatActivity() {
         recyclerViewDevices.layoutManager = LinearLayoutManager(this)
         recyclerViewDevices.adapter = DeviceAdapter(dispositivosDetectados) { selected ->
             dispositivoSeleccionado = selected
-            Toast.makeText(
-                this,
-                "Dispositivo seleccionado: ${selected.ip}",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(this, "Dispositivo seleccionado: ${selected.ip}", Toast.LENGTH_SHORT).show()
         }
 
         // Acciones
@@ -164,9 +147,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        val adapter = bluetoothAdapter
-        if (adapter != null && adapter.isDiscovering) {
-            try { adapter.cancelDiscovery() } catch (_: SecurityException) {}
+        bluetoothAdapter?.takeIf { it.isDiscovering }?.apply {
+            try { cancelDiscovery() } catch (_: SecurityException) {}
         }
     }
 
@@ -175,7 +157,7 @@ class MainActivity : AppCompatActivity() {
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
     }
 
-    // ---------------- Escaneo combinado (Bluetooth + Wi-Fi profundo) ----------------
+    // ---------------- Escaneo combinado ----------------
     private fun scanDevices() {
         dispositivosDetectados.clear()
         recyclerViewDevices.adapter?.notifyDataSetChanged()
@@ -186,9 +168,7 @@ class MainActivity : AppCompatActivity() {
         scanBluetooth()
 
         CoroutineScope(Dispatchers.Main).launch {
-            val wifiFound = withContext(Dispatchers.IO) {
-                NetworkScanner.scanSubnetDeep() // <-- ahora sin argumentos
-            }
+            val wifiFound = withContext(Dispatchers.IO) { NetworkScanner.scanSubnetDeep() }
             mergeWifiResults(wifiFound)
             progressBar.isIndeterminate = false
             tvProgress.text = "Escaneo completado: ${dispositivosDetectados.size} dispositivos"
@@ -201,17 +181,15 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val okScan = ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
-            if (!okScan) { checkAndRequestPermissions(); return }
+        val ok = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
         } else {
-            val okLoc = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            if (!okLoc) { checkAndRequestPermissions(); return }
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         }
 
-        if (adapter.isDiscovering) {
-            try { adapter.cancelDiscovery() } catch (_: SecurityException) {}
-        }
+        if (!ok) { checkAndRequestPermissions(); return }
+
+        if (adapter.isDiscovering) try { adapter.cancelDiscovery() } catch (_: SecurityException) {}
 
         try { registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND)) } catch (_: Exception) {}
 
@@ -237,6 +215,7 @@ class MainActivity : AppCompatActivity() {
             if (!dispositivosDetectados.any { d -> d.ip == info.ip }) {
                 dispositivosDetectados.add(info)
                 added++
+                if (dispositivoSeleccionado == null) dispositivoSeleccionado = info
             }
         }
         if (added > 0) recyclerViewDevices.adapter?.notifyDataSetChanged()
@@ -269,9 +248,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
-    ) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED })
@@ -329,8 +306,8 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("Cancelar") { _, _ ->
                 currentDialogImageView = null
                 pendingImageUri = null
-            }
-            .create()
+            }.create()
+
         dialog.show()
     }
 
