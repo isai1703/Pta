@@ -1,41 +1,41 @@
-package com.isai1703.pta
+package com.isai1703.pta.utils
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.InetAddress
 import java.net.Socket
-import java.util.concurrent.TimeUnit
 
 object NetworkScanner {
 
     /**
-     * Escanea un rango de IPs en la red local y devuelve una lista de dispositivos disponibles
+     * Escaneo profundo de la subred local (1-254)
+     * Devuelve lista de NetDevice con IP y nombre básico
      */
-    suspend fun scanSubnet(subnet: String, port: Int = 80): List<NetDevice> {
+    suspend fun scanSubnetDeep(subnet: String = "192.168.1"): List<NetDevice> = withContext(Dispatchers.IO) {
         val devices = mutableListOf<NetDevice>()
 
-        withContext(Dispatchers.IO) {
-            val jobs = (1..254).map { host ->
-                val ip = "$subnet.$host"
-                try {
-                    val reachable = InetAddress.getByName(ip).isReachable(300)
-                    if (reachable) {
-                        try {
-                            Socket().use { socket ->
-                                socket.connect(java.net.InetSocketAddress(ip, port), 300)
-                                devices.add(NetDevice(ip, ip, port))
-                            }
-                        } catch (_: Exception) {
-                            // puerto no accesible, igual lo añadimos
-                            devices.add(NetDevice(ip, ip, port))
+        for (host in 1..254) {
+            val ip = "$subnet.$host"
+            try {
+                val reachable = InetAddress.getByName(ip).isReachable(300)
+                if (reachable) {
+                    // Intentamos puerto 80, si está abierto asumimos tipo "Mini-PC" (puedes ajustar)
+                    val typeGuess = try {
+                        Socket().use { socket ->
+                            socket.connect(java.net.InetSocketAddress(ip, 80), 300)
                         }
+                        "Mini-PC"
+                    } catch (_: Exception) {
+                        "ESP32/Raspberry"
                     }
-                } catch (_: Exception) {
-                    // ignorar
+
+                    devices.add(NetDevice(ip = ip, type = typeGuess, name = ip))
                 }
+            } catch (_: Exception) {
+                // ignorar IPs no alcanzables
             }
         }
 
-        return devices
+        devices
     }
 }
