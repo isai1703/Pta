@@ -30,6 +30,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvProgress: TextView
     private lateinit var btnScanDevices: Button
     private lateinit var btnAddProduct: Button
+    private lateinit var btnSendAll: Button
 
     // Datos
     private val listaProductos = mutableListOf<Producto>()
@@ -56,16 +57,13 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-    // ---------------- BroadcastReceiver para escaneo Bluetooth ----------------
+    // BroadcastReceiver para escaneo Bluetooth
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == BluetoothDevice.ACTION_FOUND) {
                 val device: BluetoothDevice? =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(
-                            BluetoothDevice.EXTRA_DEVICE,
-                            BluetoothDevice::class.java
-                        )
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
                     } else {
                         @Suppress("DEPRECATION")
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
@@ -80,8 +78,7 @@ class MainActivity : AppCompatActivity() {
                             ) == PackageManager.PERMISSION_GRANTED
                         } else true
 
-                    val majorClass =
-                        if (hasBtConnect) it.bluetoothClass?.majorDeviceClass else null
+                    val majorClass = if (hasBtConnect) it.bluetoothClass?.majorDeviceClass else null
                     val typeName = when (majorClass) {
                         BluetoothClass.Device.Major.COMPUTER -> "Mini-PC"
                         BluetoothClass.Device.Major.PERIPHERAL -> "ESP32/STM32"
@@ -90,16 +87,11 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     val dName = if (hasBtConnect) it.name else null
-                    val info = DeviceInfo(
-                        ip = it.address,
-                        type = typeName,
-                        name = dName ?: "Desconocido"
-                    )
+                    val info = DeviceInfo(ip = it.address, type = typeName, name = dName ?: "Desconocido")
 
                     if (!dispositivosDetectados.any { d -> d.ip == info.ip }) {
                         dispositivosDetectados.add(info)
                         recyclerViewDevices.adapter?.notifyDataSetChanged()
-
                         if (dispositivoSeleccionado == null) {
                             dispositivoSeleccionado = info
                         }
@@ -120,6 +112,7 @@ class MainActivity : AppCompatActivity() {
         tvProgress = findViewById(R.id.tvProgress)
         btnScanDevices = findViewById(R.id.btnScanDevices)
         btnAddProduct = findViewById(R.id.btnAddProduct)
+        btnSendAll = findViewById(R.id.btnSendAll)
 
         checkAndRequestPermissions()
 
@@ -154,24 +147,19 @@ class MainActivity : AppCompatActivity() {
         // Acciones
         btnScanDevices.setOnClickListener { scanDevices() }
         btnAddProduct.setOnClickListener { openAddEditDialog(null) }
+        btnSendAll.setOnClickListener { sendCommandToAll() }
     }
 
     override fun onStop() {
         super.onStop()
         bluetoothAdapter?.takeIf { it.isDiscovering }?.apply {
-            try {
-                cancelDiscovery()
-            } catch (_: SecurityException) {
-            }
+            try { cancelDiscovery() } catch (_: SecurityException) {}
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        try {
-            unregisterReceiver(bluetoothReceiver)
-        } catch (_: Exception) {
-        }
+        try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
     }
 
     // ---------------- Escaneo combinado ----------------
@@ -190,8 +178,7 @@ class MainActivity : AppCompatActivity() {
             }
             mergeWifiResults(wifiFound)
             progressBar.isIndeterminate = false
-            tvProgress.text =
-                "Escaneo completado: ${dispositivosDetectados.size} dispositivos"
+            tvProgress.text = "Escaneo completado: ${dispositivosDetectados.size} dispositivos"
         }
     }
 
@@ -203,37 +190,22 @@ class MainActivity : AppCompatActivity() {
 
         val ok =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_SCAN
-                ) == PackageManager.PERMISSION_GRANTED
+                ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
             } else {
-                ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
             }
 
-        if (!ok) {
-            checkAndRequestPermissions(); return
-        }
+        if (!ok) { checkAndRequestPermissions(); return }
 
-        if (adapter.isDiscovering) try {
-            adapter.cancelDiscovery()
-        } catch (_: SecurityException) {
-        }
+        if (adapter.isDiscovering) try { adapter.cancelDiscovery() } catch (_: SecurityException) {}
 
-        try {
-            registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
-        } catch (_: Exception) {
-        }
+        try { registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND)) } catch (_: Exception) {}
 
         try {
             adapter.startDiscovery()
             Toast.makeText(this, "Escaneando dispositivos Bluetooth...", Toast.LENGTH_SHORT).show()
         } catch (_: SecurityException) {
-            Toast.makeText(this, "Permiso insuficiente para iniciar escaneo BT", Toast.LENGTH_SHORT)
-                .show()
+            Toast.makeText(this, "Permiso insuficiente para iniciar escaneo BT", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -262,37 +234,21 @@ class MainActivity : AppCompatActivity() {
         val permissionsToRequest = mutableListOf<String>()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED
-            ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
-
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_SCAN
-                ) != PackageManager.PERMISSION_GRANTED
-            ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED)
+                permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED)
+                permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
         } else {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED
-            ) permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+                permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_MEDIA_IMAGES
-                ) != PackageManager.PERMISSION_GRANTED
-            ) permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED)
+                permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
         } else {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                ) != PackageManager.PERMISSION_GRANTED
-            ) permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
+                permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
         if (permissionsToRequest.isNotEmpty()) {
@@ -305,9 +261,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
@@ -367,7 +321,8 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton("Cancelar") { _, _ ->
                 currentDialogImageView = null
                 pendingImageUri = null
-            }.create()
+            }
+            .create()
 
         dialog.show()
     }
@@ -375,11 +330,11 @@ class MainActivity : AppCompatActivity() {
     // ---------------- Enviar comandos ----------------
     private fun sendCommand(producto: Producto) {
         val dispositivo = dispositivoSeleccionado
+            ?: dispositivosDetectados.firstOrNull { it.type.contains("ESP32", true) || it.type.contains("Mini-PC", true) || it.type.contains("Raspberry", true) || it.type.contains("STM32", true) }
+
         if (dispositivo != null) {
             when {
-                dispositivo.type.contains("ESP32", true) ||
-                        dispositivo.type.contains("Mini-PC", true) ||
-                        dispositivo.type.contains("Raspberry", true) ->
+                dispositivo.type.contains("ESP32", true) || dispositivo.type.contains("Mini-PC", true) || dispositivo.type.contains("Raspberry", true) ->
                     sendCommandWifi(dispositivo.ip, producto.nombre)
 
                 dispositivo.type.contains("STM32", true) ->
@@ -388,8 +343,29 @@ class MainActivity : AppCompatActivity() {
                 else -> Toast.makeText(this, "Dispositivo no soportado", Toast.LENGTH_SHORT).show()
             }
         } else {
-            Toast.makeText(this, "No hay dispositivo seleccionado", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "No hay dispositivo compatible detectado", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun sendCommandToAll() {
+        if (dispositivosDetectados.isEmpty()) {
+            Toast.makeText(this, "No hay dispositivos detectados", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        listaProductos.forEach { producto ->
+            dispositivosDetectados.forEach { dispositivo ->
+                when {
+                    dispositivo.type.contains("ESP32", true) || dispositivo.type.contains("Mini-PC", true) || dispositivo.type.contains("Raspberry", true) ->
+                        sendCommandWifi(dispositivo.ip, producto.nombre)
+
+                    dispositivo.type.contains("STM32", true) ->
+                        sendCommandBluetooth(producto.nombre)
+                }
+            }
+        }
+
+        Toast.makeText(this, "Comando enviado a todos los dispositivos compatibles", Toast.LENGTH_SHORT).show()
     }
 
     private fun sendCommandWifi(ip: String, comando: String) {
@@ -401,9 +377,11 @@ class MainActivity : AppCompatActivity() {
                 connection.readTimeout = 2000
                 connection.requestMethod = "GET"
                 val responseCode = connection.responseCode
+
                 runOnUiThread {
                     Toast.makeText(this, "Respuesta WiFi: $responseCode", Toast.LENGTH_SHORT).show()
                 }
+
                 connection.disconnect()
             } catch (e: Exception) {
                 runOnUiThread {
@@ -444,10 +422,7 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this, "Comando enviado por Bluetooth", Toast.LENGTH_SHORT).show()
                     }
                 } finally {
-                    try {
-                        socket.close()
-                    } catch (_: IOException) {
-                    }
+                    try { socket.close() } catch (_: IOException) {}
                 }
             } catch (e: Exception) {
                 runOnUiThread {
