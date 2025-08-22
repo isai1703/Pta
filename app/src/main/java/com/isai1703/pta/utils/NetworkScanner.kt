@@ -1,27 +1,3 @@
-                readTimeout = HTTP_READ_TIMEOUT_MS
-                requestMethod = "GET"
-            }
-
-            val server = conn.getHeaderField("Server") ?: ""
-            val body = try { 
-                BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() } 
-            } catch (_: Exception) { "" }
-            conn.disconnect()
-
-            val type = when {
-                body.contains("ESP32", true) || server.contains("ESP", true) -> "ESP32"
-                body.contains("Raspberry", true) || server.contains("raspberry", true) -> "Raspberry"
-                server.contains("Apache", true) || server.contains("nginx", true) -> "Mini-PC"
-                else -> "Mini-PC"
-            }
-
-            val name = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
-                .find(body)?.groupValues?.getOrNull(1)
-
-            name to type
-        } catch (_: Exception) {
-            null to null
-        }
 package com.isai1703.pta.utils
 
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +6,14 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.net.*
+import java.net.HttpURLConnection
+import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.NetworkInterface
+import java.net.Socket
+import java.net.URL
+import java.util.Collections
 
 object NetworkScanner {
 
@@ -67,6 +50,7 @@ object NetworkScanner {
             try {
                 Socket().use { s -> s.connect(InetSocketAddress(ip, p), CONNECT_TIMEOUT_MS) }
                 open = true
+
                 if (p == 80 || p == 8080) {
                     val (name, type) = httpFingerprint(ip, p)
                     guessedName = guessedName ?: name
@@ -118,7 +102,9 @@ object NetworkScanner {
                 .find(body)?.groupValues?.getOrNull(1)
 
             name to type
-        } catch (_: Exception) { null to null }
+        } catch (_: Exception) {
+            null to null
+        }
     }
 
     // ---------------- Reverse DNS ----------------
