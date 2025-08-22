@@ -60,20 +60,28 @@ class MainActivity : AppCompatActivity() {
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == BluetoothDevice.ACTION_FOUND) {
-                val device: BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                }
+                val device: BluetoothDevice? =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(
+                            BluetoothDevice.EXTRA_DEVICE,
+                            BluetoothDevice::class.java
+                        )
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    }
 
                 device?.let {
-                    val hasBtConnect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT) ==
-                                PackageManager.PERMISSION_GRANTED
-                    } else true
+                    val hasBtConnect =
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            ContextCompat.checkSelfPermission(
+                                this@MainActivity,
+                                Manifest.permission.BLUETOOTH_CONNECT
+                            ) == PackageManager.PERMISSION_GRANTED
+                        } else true
 
-                    val majorClass = if (hasBtConnect) it.bluetoothClass?.majorDeviceClass else null
+                    val majorClass =
+                        if (hasBtConnect) it.bluetoothClass?.majorDeviceClass else null
                     val typeName = when (majorClass) {
                         BluetoothClass.Device.Major.COMPUTER -> "Mini-PC"
                         BluetoothClass.Device.Major.PERIPHERAL -> "ESP32/STM32"
@@ -91,7 +99,7 @@ class MainActivity : AppCompatActivity() {
                     if (!dispositivosDetectados.any { d -> d.ip == info.ip }) {
                         dispositivosDetectados.add(info)
                         recyclerViewDevices.adapter?.notifyDataSetChanged()
-                        // Seleccion automática si no hay seleccionado
+
                         if (dispositivoSeleccionado == null) {
                             dispositivoSeleccionado = info
                         }
@@ -113,7 +121,6 @@ class MainActivity : AppCompatActivity() {
         btnScanDevices = findViewById(R.id.btnScanDevices)
         btnAddProduct = findViewById(R.id.btnAddProduct)
 
-        // Verificar permisos
         checkAndRequestPermissions()
 
         // RecyclerView productos
@@ -137,7 +144,11 @@ class MainActivity : AppCompatActivity() {
         recyclerViewDevices.layoutManager = LinearLayoutManager(this)
         recyclerViewDevices.adapter = DeviceAdapter(dispositivosDetectados) { selected ->
             dispositivoSeleccionado = selected
-            Toast.makeText(this, "Dispositivo seleccionado: ${selected.ip}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                "Dispositivo seleccionado: ${selected.ip}",
+                Toast.LENGTH_SHORT
+            ).show()
         }
 
         // Acciones
@@ -148,13 +159,19 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         bluetoothAdapter?.takeIf { it.isDiscovering }?.apply {
-            try { cancelDiscovery() } catch (_: SecurityException) {}
+            try {
+                cancelDiscovery()
+            } catch (_: SecurityException) {
+            }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
+        try {
+            unregisterReceiver(bluetoothReceiver)
+        } catch (_: Exception) {
+        }
     }
 
     // ---------------- Escaneo combinado ----------------
@@ -168,10 +185,13 @@ class MainActivity : AppCompatActivity() {
         scanBluetooth()
 
         CoroutineScope(Dispatchers.Main).launch {
-            val wifiFound = withContext(Dispatchers.IO) { NetworkScanner.scanSubnetDeep() }
+            val wifiFound = withContext(Dispatchers.IO) {
+                NetworkScanner.scanSubnetDeep()
+            }
             mergeWifiResults(wifiFound)
             progressBar.isIndeterminate = false
-            tvProgress.text = "Escaneo completado: ${dispositivosDetectados.size} dispositivos"
+            tvProgress.text =
+                "Escaneo completado: ${dispositivosDetectados.size} dispositivos"
         }
     }
 
@@ -181,23 +201,39 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val ok = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
-        } else {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val ok =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.BLUETOOTH_SCAN
+                ) == PackageManager.PERMISSION_GRANTED
+            } else {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            }
+
+        if (!ok) {
+            checkAndRequestPermissions(); return
         }
 
-        if (!ok) { checkAndRequestPermissions(); return }
+        if (adapter.isDiscovering) try {
+            adapter.cancelDiscovery()
+        } catch (_: SecurityException) {
+        }
 
-        if (adapter.isDiscovering) try { adapter.cancelDiscovery() } catch (_: SecurityException) {}
-
-        try { registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND)) } catch (_: Exception) {}
+        try {
+            registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
+        } catch (_: Exception) {
+        }
 
         try {
             adapter.startDiscovery()
             Toast.makeText(this, "Escaneando dispositivos Bluetooth...", Toast.LENGTH_SHORT).show()
         } catch (_: SecurityException) {
-            Toast.makeText(this, "Permiso insuficiente para iniciar escaneo BT", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Permiso insuficiente para iniciar escaneo BT", Toast.LENGTH_SHORT)
+                .show()
         }
     }
 
@@ -226,35 +262,60 @@ class MainActivity : AppCompatActivity() {
         val permissionsToRequest = mutableListOf<String>()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED)
-                permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED)
-                permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                ) != PackageManager.PERMISSION_GRANTED
+            ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
+
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.BLUETOOTH_SCAN
+                ) != PackageManager.PERMISSION_GRANTED
+            ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
         } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-                permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
+            ) permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED)
-                permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_MEDIA_IMAGES
+                ) != PackageManager.PERMISSION_GRANTED
+            ) permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
         } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
-                permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) != PackageManager.PERMISSION_GRANTED
+            ) permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
         if (permissionsToRequest.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), REQUEST_CODE_PERMISSIONS)
+            ActivityCompat.requestPermissions(
+                this,
+                permissionsToRequest.toTypedArray(),
+                REQUEST_CODE_PERMISSIONS
+            )
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED })
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                 Toast.makeText(this, "Permisos concedidos", Toast.LENGTH_SHORT).show()
-            else
+            } else {
                 Toast.makeText(this, "Algunos permisos fueron denegados", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -317,8 +378,8 @@ class MainActivity : AppCompatActivity() {
         if (dispositivo != null) {
             when {
                 dispositivo.type.contains("ESP32", true) ||
-                dispositivo.type.contains("Mini-PC", true) ||
-                dispositivo.type.contains("Raspberry", true) ->
+                        dispositivo.type.contains("Mini-PC", true) ||
+                        dispositivo.type.contains("Raspberry", true) ->
                     sendCommandWifi(dispositivo.ip, producto.nombre)
 
                 dispositivo.type.contains("STM32", true) ->
@@ -383,7 +444,10 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(this, "Comando enviado por Bluetooth", Toast.LENGTH_SHORT).show()
                     }
                 } finally {
-                    try { socket.close() } catch (_: IOException) {}
+                    try {
+                        socket.close()
+                    } catch (_: IOException) {
+                    }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
