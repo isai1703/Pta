@@ -19,7 +19,8 @@
         android:id="@+id/btnSeleccionarImagen"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Seleccionar imagen"/>
+        android:text="Seleccionar imagen"
+        android:layout_marginTop="8dp"/>
 
     <EditText
         android:id="@+id/etNombreProducto"
@@ -34,6 +35,14 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Precio"
+        android:inputType="text"
+        android:layout_marginTop="8dp"/>
+
+    <EditText
+        android:id="@+id/etComandoProducto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Comando (p.e. RELEASE_5)"
         android:inputType="text"
         android:layout_marginTop="8dp"/>
 

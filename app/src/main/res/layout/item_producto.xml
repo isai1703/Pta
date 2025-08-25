@@ -58,5 +58,4 @@
         android:text="Editar"
         android:padding="6dp"
         android:minWidth="72dp"/>
-
 </LinearLayout>

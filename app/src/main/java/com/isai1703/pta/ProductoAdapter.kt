@@ -26,12 +26,9 @@ class ProductoAdapter(
 
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
         val producto = productos[position]
-
-        // Asignar valores
         holder.tvNombre.text = producto.nombre
         holder.tvPrecio.text = producto.precio
 
-        // Cargar imagen desde path si existe, si no usar icono por defecto
         if (!producto.imagenPath.isNullOrEmpty()) {
             val uri = Uri.parse(producto.imagenPath)
             holder.ivProducto.setImageURI(uri)
@@ -39,15 +36,8 @@ class ProductoAdapter(
             holder.ivProducto.setImageResource(R.drawable.icon_prueba)
         }
 
-        // Click en enviar comando
-        holder.btnEnviarComando.setOnClickListener {
-            onSendCommandClick(producto)
-        }
-
-        // Click en editar producto
-        holder.btnEditar.setOnClickListener {
-            onEditClick(producto)
-        }
+        holder.btnEnviarComando.setOnClickListener { onSendCommandClick(producto) }
+        holder.btnEditar.setOnClickListener { onEditClick(producto) }
     }
 
     class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {

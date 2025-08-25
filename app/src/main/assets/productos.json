@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "nombre": "Producto 1",
+    "precio": "$10",
+    "imagenPath": null,
+    "comando": "RELEASE_1"
+  },
+  {
+    "id": 2,
+    "nombre": "Producto 2",
+    "precio": "$20",
+    "imagenPath": null,
+    "comando": "RELEASE_2"
+  }
+]
