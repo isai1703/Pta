@@ -7,7 +7,7 @@ data class Producto(
     var nombre: String,
     var precio: String,
     var imagenPath: String?,
-    var comando: String = "" // editable desde la app
+    var comando: String = ""   // se usa para comandos como RELEASE_5, etc.
 ) {
     fun toJson(): JSONObject {
         val o = JSONObject()
@@ -31,4 +31,3 @@ data class Producto(
         }
     }
 }
-

@@ -26,6 +26,7 @@ class ProductoAdapter(
 
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
         val producto = productos[position]
+
         holder.tvNombre.text = producto.nombre
         holder.tvPrecio.text = producto.precio
 
