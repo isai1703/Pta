@@ -5,24 +5,29 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.isai1703.pta.Producto
 import java.io.File
+import java.io.FileReader
+import java.io.FileWriter
 
 object ProductStorage {
     private const val FILE_NAME = "products.json"
 
-    fun save(ctx: Context, productos: List<Producto>) {
+    fun saveProducts(context: Context, products: List<Producto>) {
         try {
-            val json = Gson().toJson(productos)
-            File(ctx.filesDir, FILE_NAME).writeText(json)
+            val gson = Gson()
+            val json = gson.toJson(products)
+            val file = File(context.filesDir, FILE_NAME)
+            FileWriter(file).use { it.write(json) }
         } catch (_: Exception) { /* opcional: log */ }
     }
 
-    fun load(ctx: Context): List<Producto> {
+    fun loadProducts(context: Context): List<Producto> {
         return try {
-            val f = File(ctx.filesDir, FILE_NAME)
-            if (!f.exists()) return emptyList()
-            val json = f.readText()
-            val type = object : TypeToken<List<Producto>>() {}.type
-            Gson().fromJson<List<Producto>>(json, type) ?: emptyList()
+            val file = File(context.filesDir, FILE_NAME)
+            if (!file.exists()) return emptyList()
+            FileReader(file).use { reader ->
+                val type = object : TypeToken<List<Producto>>() {}.type
+                Gson().fromJson<List<Producto>>(reader, type) ?: emptyList()
+            }
         } catch (_: Exception) {
             emptyList()
         }

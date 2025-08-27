@@ -43,5 +43,5 @@
         android:layout_height="wrap_content"
         android:hint="Comando (p.e. RELEASE_5)"
         android:inputType="text"
-        android:layout_marginTop="8dp"/>
+        android:layout_marginTop="8dp" />
 </LinearLayout>

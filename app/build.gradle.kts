@@ -1,36 +1,57 @@
-package com.isai1703.pta.utils
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
 
-import android.content.Context
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-import com.isai1703.pta.Producto
-import java.io.File
-import java.io.FileReader
-import java.io.FileWriter
+android {
+    namespace = "com.isai1703.pta"
+    compileSdk = 34
 
-object ProductStorage {
+    defaultConfig {
+        applicationId = "com.isai1703.pta"
+        minSdk = 24
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
 
-    private const val FILE_NAME = "products.json"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
 
-    fun saveProducts(context: Context, products: List<Producto>) {
-        val gson = Gson()
-        val json = gson.toJson(products)
-        val file = File(context.filesDir, FILE_NAME)
-        FileWriter(file).use {
-            it.write(json)
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 
-    fun loadProducts(context: Context): List<Producto> {
-        val file = File(context.filesDir, FILE_NAME)
-        if (!file.exists()) {
-            return emptyList()
-        }
-
-        val gson = Gson()
-        FileReader(file).use { reader ->
-            val type = object : TypeToken<List<Producto>>() {}.type
-            return gson.fromJson(reader, type)
-        }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+dependencies {
+    // AndroidX
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.google.android.material:material:1.12.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("androidx.recyclerview:recyclerview:1.3.1")
+
+    // Kotlin coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // Gson para manejo de JSON
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    // Testing
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }

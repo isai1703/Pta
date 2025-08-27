@@ -7,7 +7,7 @@ data class Producto(
     var nombre: String,
     var precio: String,
     var imagenPath: String?,
-    var comando: String = ""   // se usa para comandos como RELEASE_5, etc.
+    var comando: String = "" // campo para el comando real (p.e. RELEASE_5)
 ) {
     fun toJson(): JSONObject {
         val o = JSONObject()

@@ -17,8 +17,7 @@ class ProductoAdapter(
 ) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_producto, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_producto, parent, false)
         return ProductoViewHolder(view)
     }
 
@@ -26,13 +25,14 @@ class ProductoAdapter(
 
     override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
         val producto = productos[position]
-
         holder.tvNombre.text = producto.nombre
         holder.tvPrecio.text = producto.precio
 
         if (!producto.imagenPath.isNullOrEmpty()) {
-            val uri = Uri.parse(producto.imagenPath)
-            holder.ivProducto.setImageURI(uri)
+            try {
+                val uri = Uri.parse(producto.imagenPath)
+                holder.ivProducto.setImageURI(uri)
+            } catch (_: Exception) { holder.ivProducto.setImageResource(R.drawable.icon_prueba) }
         } else {
             holder.ivProducto.setImageResource(R.drawable.icon_prueba)
         }

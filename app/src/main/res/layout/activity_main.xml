@@ -16,8 +16,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Agregar producto"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginTop="8dp"/>
 
     <ProgressBar
         android:id="@+id/progressBar"
@@ -51,6 +50,6 @@
         android:layout_height="wrap_content"
         android:text="Enviar a todos"
         android:layout_marginTop="12dp"
-        android:textColor="@android:color/white"
-        android:background="@android:color/holo_blue_dark"/>
+        android:backgroundTint="@color/green"
+        android:textColor="@android:color/white"/>
 </LinearLayout>
