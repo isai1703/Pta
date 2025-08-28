@@ -91,7 +91,6 @@ class MainActivity : AppCompatActivity() {
                     if (!dispositivosDetectados.any { d -> d.ip == info.ip }) {
                         dispositivosDetectados.add(info)
                         recyclerViewDevices.adapter?.notifyDataSetChanged()
-                        // selección automática si no hay seleccion
                         if (dispositivoSeleccionado == null) dispositivoSeleccionado = info
                     }
                 }
@@ -114,11 +113,10 @@ class MainActivity : AppCompatActivity() {
 
         checkAndRequestPermissions()
 
-        // Cargar productos desde almacenamiento
+        // Cargar productos persistidos
         listaProductos.clear()
         listaProductos.addAll(ProductStorage.loadProducts(this))
         if (listaProductos.isEmpty()) {
-            // semilla
             listaProductos += listOf(
                 Producto(1, "Producto 1", "$10", null, "RELEASE_1"),
                 Producto(2, "Producto 2", "$20", null, "RELEASE_2")
@@ -159,7 +157,7 @@ class MainActivity : AppCompatActivity() {
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) { }
     }
 
-    // ---------------- Escaneo combinado ----------------
+    // ---------------- Escaneo ----------------
     private fun scanDevices() {
         dispositivosDetectados.clear()
         recyclerViewDevices.adapter?.notifyDataSetChanged()
@@ -170,7 +168,6 @@ class MainActivity : AppCompatActivity() {
         scanBluetooth()
 
         CoroutineScope(Dispatchers.Main).launch {
-            // Escaneo profundo (NetworkScanner hace expandSubnet y fingerprint)
             val wifiFound = withContext(Dispatchers.IO) { NetworkScanner.scanSubnetDeep() }
             mergeWifiResults(wifiFound)
             progressBar.isIndeterminate = false
@@ -415,7 +412,7 @@ class MainActivity : AppCompatActivity() {
                     out.write((comando + "\n").toByteArray(Charsets.UTF_8))
                     out.flush()
 
-                    // Leer respuesta (si la hay)
+                    // Leer respuesta
                     val buffer = ByteArray(1024)
                     val bytesRead = inp.read(buffer)
                     val respuesta = if (bytesRead > 0) String(buffer, 0, bytesRead) else "Sin respuesta"
