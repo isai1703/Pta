@@ -16,12 +16,10 @@ object ProductStorage {
 
     fun saveProducts(context: Context, products: List<Producto>) {
         try {
-            // Aseguramos tipo String explícito para evitar ambigüedad en write(...)
             val json: String = Gson().toJson(products)
-
             val file = File(context.filesDir, FILE_NAME)
-            FileWriter(file, /* append = */ false).use { writer ->
-                writer.write(json)      // write(String)
+            FileWriter(file, false).use { writer ->
+                writer.write(json)
                 writer.flush()
             }
         } catch (e: Exception) {
