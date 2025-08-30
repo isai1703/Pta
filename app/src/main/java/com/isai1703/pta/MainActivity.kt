@@ -1,7 +1,10 @@
 package com.isai1703.pta
 
 import android.Manifest
-import android.bluetooth.*
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothClass
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
 import android.content.*
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -15,17 +18,24 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.isai1703.pta.adapters.DeviceAdapter
+import com.isai1703.pta.adapters.ProductoAdapter
 import com.isai1703.pta.utils.NetDevice
 import com.isai1703.pta.utils.NetworkScanner
 import com.isai1703.pta.utils.ProductStorage
 import kotlinx.coroutines.*
+import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
+import java.io.InputStreamReader
 import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.URL
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
-    // UI
+    // ---------- UI ----------
     private lateinit var recyclerView: RecyclerView
     private lateinit var recyclerViewDevices: RecyclerView
     private lateinit var progressBar: ProgressBar
@@ -34,46 +44,44 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnAddProduct: Button
     private lateinit var btnSendAll: Button
 
-    // Datos
+    // ---------- Datos ----------
     private val listaProductos = mutableListOf<Producto>()
     private val dispositivosDetectados = mutableListOf<DeviceInfo>()
     private var dispositivoSeleccionado: DeviceInfo? = null
 
-    // Bluetooth
+    // ---------- Bluetooth ----------
     private val bluetoothAdapter: BluetoothAdapter? by lazy {
         (getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
     }
 
-    // Permisos
+    // ---------- Permisos ----------
     private val REQUEST_CODE_PERMISSIONS = 1001
 
-    // Selector de imágenes
+    // ---------- Selector de imágenes ----------
     private var pendingImageUri: Uri? = null
     private var currentDialogImageView: ImageView? = null
-    private val pickImageLauncher =
-        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            uri?.let {
-                pendingImageUri = it
-                currentDialogImageView?.setImageURI(it)
-            }
+    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            pendingImageUri = it
+            currentDialogImageView?.setImageURI(it)
         }
+    }
 
-    // ---------------- BroadcastReceiver Bluetooth ----------------
+    // ---------- BroadcastReceiver Bluetooth ----------
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == BluetoothDevice.ACTION_FOUND) {
-                val device: BluetoothDevice? =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                    }
-
+                val device: BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                }
                 device?.let {
                     val hasBtConnect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         ContextCompat.checkSelfPermission(
-                            this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT
+                            this@MainActivity,
+                            Manifest.permission.BLUETOOTH_CONNECT
                         ) == PackageManager.PERMISSION_GRANTED
                     } else true
 
@@ -86,7 +94,11 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     val dName = if (hasBtConnect) it.name else null
-                    val info = DeviceInfo(ip = it.address, type = typeName, name = dName ?: "Desconocido")
+                    val info = DeviceInfo(
+                        ip = it.address, // MAC como "ip" para BT
+                        type = typeName,
+                        name = dName ?: "Desconocido"
+                    )
 
                     if (!dispositivosDetectados.any { d -> d.ip == info.ip }) {
                         dispositivosDetectados.add(info)
@@ -98,7 +110,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // -------- Ciclo de vida --------
+    // ---------- Ciclo de vida ----------
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -113,7 +125,7 @@ class MainActivity : AppCompatActivity() {
 
         checkAndRequestPermissions()
 
-        // Cargar productos persistidos
+        // ---------- Cargar productos persistidos ----------
         listaProductos.clear()
         listaProductos.addAll(ProductStorage.loadProducts(this))
         if (listaProductos.isEmpty()) {
@@ -124,7 +136,7 @@ class MainActivity : AppCompatActivity() {
             ProductStorage.saveProducts(this, listaProductos)
         }
 
-        // RecyclerView productos
+        // ---------- RecyclerView productos ----------
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = ProductoAdapter(
             productos = listaProductos,
@@ -132,14 +144,14 @@ class MainActivity : AppCompatActivity() {
             onEditClick = { producto -> openAddEditDialog(producto) }
         )
 
-        // RecyclerView dispositivos
+        // ---------- RecyclerView dispositivos ----------
         recyclerViewDevices.layoutManager = LinearLayoutManager(this)
         recyclerViewDevices.adapter = DeviceAdapter(dispositivosDetectados) { selected ->
             dispositivoSeleccionado = selected
             Toast.makeText(this, "Dispositivo seleccionado: ${selected.ip}", Toast.LENGTH_SHORT).show()
         }
 
-        // Acciones
+        // ---------- Botones ----------
         btnScanDevices.setOnClickListener { scanDevices() }
         btnAddProduct.setOnClickListener { openAddEditDialog(null) }
         btnSendAll.setOnClickListener { sendToAllDevices() }
@@ -157,7 +169,7 @@ class MainActivity : AppCompatActivity() {
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) { }
     }
 
-    // ---------------- Escaneo ----------------
+    // ---------- Escaneo ----------
     private fun scanDevices() {
         dispositivosDetectados.clear()
         recyclerViewDevices.adapter?.notifyDataSetChanged()
@@ -168,10 +180,23 @@ class MainActivity : AppCompatActivity() {
         scanBluetooth()
 
         CoroutineScope(Dispatchers.Main).launch {
-            val wifiFound = withContext(Dispatchers.IO) { NetworkScanner.scanSubnetDeep() }
-            mergeWifiResults(wifiFound)
+            // Escaneo WiFi subred local
+            val wifiFoundLocal = withContext(Dispatchers.IO) { NetworkScanner.scanSubnetDeep() }
+            mergeWifiResults(wifiFoundLocal)
+
+            // Intento de detección directa de la máquina en subred alternativa
+            tvProgress.text = "Buscando máquina en otras subredes..."
+            val detected = withContext(Dispatchers.IO) { NetworkScanner.scanForMachine() }
+            detected?.let {
+                mergeWifiResults(listOf(it.asNetDevice()))
+                dispositivoSeleccionado = dispositivosDetectados.firstOrNull { d -> d.ip == it.ip } ?: dispositivoSeleccionado
+                saveDetectedIp(it.ip)
+                tvProgress.text = "Máquina detectada en ${it.ip}. Configuración actualizada."
+            } ?: run {
+                tvProgress.text = "Escaneo completado: ${dispositivosDetectados.size} dispositivos. Máquina no encontrada."
+            }
+
             progressBar.isIndeterminate = false
-            tvProgress.text = "Escaneo completado: ${dispositivosDetectados.size} dispositivos"
         }
     }
 
@@ -189,10 +214,9 @@ class MainActivity : AppCompatActivity() {
 
         if (!ok) { checkAndRequestPermissions(); return }
 
-        if (adapter.isDiscovering) try { adapter.cancelDiscovery() } catch (_: SecurityException) { }
+        if (adapter.isDiscovering) try { adapter.cancelDiscovery() } catch (_: SecurityException) {}
 
-        try { registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND)) } catch (_: Exception) { }
-
+        try { registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND)) } catch (_: Exception) {}
         try {
             adapter.startDiscovery()
             Toast.makeText(this, "Escaneando Bluetooth...", Toast.LENGTH_SHORT).show()
@@ -221,7 +245,7 @@ class MainActivity : AppCompatActivity() {
         if (added > 0) recyclerViewDevices.adapter?.notifyDataSetChanged()
     }
 
-    // ---------------- Permisos ----------------
+    // ---------- Permisos ----------
     private fun checkAndRequestPermissions() {
         val permissionsToRequest = mutableListOf<String>()
 
@@ -258,7 +282,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ---------------- Agregar / Editar producto ----------------
+    // ---------- Agregar / Editar producto ----------
     private fun openAddEditDialog(producto: Producto?) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_add_edit_producto, null)
         val etNombre = dialogView.findViewById<EditText>(R.id.etNombreProducto)
@@ -288,146 +312,59 @@ class MainActivity : AppCompatActivity() {
                 val comando = etComando.text.toString().trim()
                 val imagenPath = pendingImageUri?.toString()
 
-                if (producto == null) {
-                    val nuevo = Producto(
-                        id = (listaProductos.maxOfOrNull { it.id } ?: 0) + 1,
-                        nombre = nombre.ifEmpty { "Sin nombre" },
-                        precio = if (precio.isEmpty()) "$0" else precio,
-                        imagenPath = imagenPath,
-                        comando = comando
-                    )
-                    listaProductos.add(nuevo)
-                } else {
-                    producto.nombre = nombre.ifEmpty { producto.nombre }
-                    producto.precio = if (precio.isEmpty()) producto.precio else precio
-                    producto.imagenPath = imagenPath ?: producto.imagenPath
-                    producto.comando = comando
+                if (nombre.isNotEmpty() && precio.isNotEmpty()) {
+                    if (producto == null) {
+                        val nuevo = Producto(Random().nextInt(100000), nombre, precio, imagenPath, comando)
+                        listaProductos.add(nuevo)
+                    } else {
+                        producto.nombre = nombre
+                        producto.precio = precio
+                        producto.comando = comando
+                        producto.imagenPath = imagenPath
+                    }
+                    ProductStorage.saveProducts(this, listaProductos)
+                    recyclerView.adapter?.notifyDataSetChanged()
                 }
-
-                ProductStorage.saveProducts(this, listaProductos)
-                recyclerView.adapter?.notifyDataSetChanged()
-                currentDialogImageView = null
-                pendingImageUri = null
             }
-            .setNegativeButton("Cancelar") { _, _ ->
-                currentDialogImageView = null
-                pendingImageUri = null
-            }.create()
+            .setNegativeButton("Cancelar", null)
+            .create()
+
         dialog.show()
     }
 
-    // ---------------- Enviar comandos ----------------
+    // ---------- Guardar IP detectada ----------
+    private fun saveDetectedIp(ip: String) {
+        try {
+            val file = File(filesDir, "config.txt")
+            file.writeText(ip)
+        } catch (_: IOException) { }
+    }
+
+    // ---------- Enviar comandos ----------
     private fun sendCommand(producto: Producto) {
-        val dispositivo = dispositivoSeleccionado
-        if (dispositivo != null) {
-            when {
-                dispositivo.type.contains("ESP32", true) ||
-                        dispositivo.type.contains("Mini-PC", true) ||
-                        dispositivo.type.contains("Raspberry", true) ->
-                    sendCommandWifi(dispositivo.ip, producto.comando.ifEmpty { producto.nombre })
-
-                dispositivo.type.contains("STM32", true) ->
-                    sendCommandBluetooth(producto.comando.ifEmpty { producto.nombre })
-
+        dispositivoSeleccionado?.let { device ->
+            when (device.type) {
+                "ESP32", "STM32", "Mini-PC", "Raspberry" -> sendCommandWifi(device.ip, producto.comando)
                 else -> Toast.makeText(this, "Dispositivo no soportado", Toast.LENGTH_SHORT).show()
             }
-        } else {
-            Toast.makeText(this, "No hay dispositivo seleccionado", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun sendToAllDevices() {
-        if (dispositivosDetectados.isEmpty()) {
-            Toast.makeText(this, "No hay dispositivos para enviar", Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (listaProductos.isEmpty()) {
-            Toast.makeText(this, "No hay productos", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val producto = listaProductos.first()
-        dispositivosDetectados.forEach { d ->
-            when {
-                d.type.contains("ESP32", true) ||
-                        d.type.contains("Mini-PC", true) ||
-                        d.type.contains("Raspberry", true) ->
-                    sendCommandWifi(d.ip, producto.comando.ifEmpty { producto.nombre })
-
-                d.type.contains("STM32", true) ->
-                    sendCommandBluetooth(producto.comando.ifEmpty { producto.nombre })
-            }
-        }
-        Toast.makeText(this, "Comando enviado a todos", Toast.LENGTH_SHORT).show()
+        listaProductos.forEach { sendCommand(it) }
     }
 
     private fun sendCommandWifi(ip: String, comando: String) {
-        Thread {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
-                val url = java.net.URL("http://$ip/command?cmd=${java.net.URLEncoder.encode(comando, "utf-8")}")
-                val connection = url.openConnection() as HttpURLConnection
-                connection.connectTimeout = 2500
-                connection.readTimeout = 3000
-                connection.requestMethod = "GET"
-                val responseCode = connection.responseCode
-                val responseText = connection.inputStream.bufferedReader().readText()
-                runOnUiThread {
-                    Toast.makeText(this, "WiFi $ip → $responseCode: ${responseText.take(120)}", Toast.LENGTH_SHORT).show()
-                }
-                connection.disconnect()
-            } catch (e: Exception) {
-                runOnUiThread {
-                    Toast.makeText(this, "Error WiFi con $ip: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }.start()
-    }
-
-    private fun sendCommandBluetooth(comando: String) {
-        val sppUuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-        val adapter = bluetoothAdapter ?: run {
-            Toast.makeText(this, "Bluetooth no disponible", Toast.LENGTH_SHORT).show()
-            return
+                val url = URL("http://$ip/$comando")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 3000
+                conn.readTimeout = 3000
+                conn.requestMethod = "GET"
+                conn.inputStream.bufferedReader().use { it.readText() }
+                conn.disconnect()
+            } catch (_: Exception) { }
         }
-
-        @Suppress("MissingPermission")
-        val device: BluetoothDevice = try {
-            adapter.bondedDevices.firstOrNull() ?: run {
-                Toast.makeText(this, "No hay dispositivos BT emparejados", Toast.LENGTH_SHORT).show()
-                return
-            }
-        } catch (_: SecurityException) {
-            Toast.makeText(this, "Permiso BLUETOOTH_CONNECT requerido", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        Thread {
-            try {
-                @Suppress("MissingPermission")
-                val socket = device.createRfcommSocketToServiceRecord(sppUuid)
-                try {
-                    socket.connect()
-                    val out = socket.outputStream
-                    val inp = socket.inputStream
-                    out.write((comando + "\n").toByteArray(Charsets.UTF_8))
-                    out.flush()
-
-                    // Leer respuesta
-                    val buffer = ByteArray(1024)
-                    val bytesRead = inp.read(buffer)
-                    val respuesta = if (bytesRead > 0) String(buffer, 0, bytesRead) else "Sin respuesta"
-
-                    runOnUiThread {
-                        Toast.makeText(this, "BT $device → ${respuesta.take(120)}", Toast.LENGTH_SHORT).show()
-                    }
-                } finally {
-                    try { socket.close() } catch (_: IOException) { }
-                }
-            } catch (e: Exception) {
-                runOnUiThread {
-                    Toast.makeText(this, "Error BT: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }.start()
     }
 }

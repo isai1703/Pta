@@ -6,14 +6,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.Inet4Address
-import java.net.InetAddress
-import java.net.InetSocketAddress
-import java.net.NetworkInterface
-import java.net.Socket
-import java.net.URL
-import java.util.Collections
+import java.net.*
+import java.util.*
 
 object NetworkScanner {
 
@@ -21,7 +15,15 @@ object NetworkScanner {
     private const val CONNECT_TIMEOUT_MS = 550
     private const val HTTP_READ_TIMEOUT_MS = 700
 
-    // ---------------- Versión con parámetro de subred (compatible con MainActivity) ----------------
+    // Subredes comunes fallback multi-red
+    private val commonSubnets = listOf(
+        "192.168.0",
+        "192.168.1",
+        "192.168.100",
+        "10.0.0"
+    )
+
+    // ---------- Escaneo profundo con parámetro de subred ----------
     suspend fun scanSubnetDeep(subnet: String): List<NetDevice> = withContext(Dispatchers.IO) {
         val ips = expandSubnet(subnet)
         val chunks = ips.chunked(32)
@@ -34,13 +36,30 @@ object NetworkScanner {
         results
     }
 
-    // ---------------- Versión original sin parámetros ----------------
+    // ---------- Escaneo de subred local ----------
     suspend fun scanSubnetDeep(): List<NetDevice> = withContext(Dispatchers.IO) {
         val subnet = getLocalSubnet()?.base ?: return@withContext emptyList()
         scanSubnetDeep(subnet)
     }
 
-    // ---------------- Escaneo de host individual ----------------
+    // ---------- Escaneo multi-red (devuelve primera máquina encontrada) ----------
+    suspend fun scanForMachine(): NetDevice? {
+        // Primero subred local
+        getLocalSubnet()?.let { localSubnet ->
+            val devices = scanSubnetDeep(localSubnet.base)
+            devices.firstOrNull { it.type in listOf("ESP32", "STM32") || it.name.contains("Machine", true) }?.let { return it }
+        }
+
+        // Luego subredes comunes
+        for (subnet in commonSubnets) {
+            val devices = scanSubnetDeep(subnet)
+            devices.firstOrNull { it.type in listOf("ESP32", "STM32") || it.name.contains("Machine", true) }?.let { return it }
+        }
+
+        return null
+    }
+
+    // ---------- Escaneo de host individual ----------
     private fun probeHost(ip: String): NetDevice? {
         var open = false
         var guessedName: String? = null
@@ -50,20 +69,19 @@ object NetworkScanner {
             try {
                 Socket().use { s -> s.connect(InetSocketAddress(ip, p), CONNECT_TIMEOUT_MS) }
                 open = true
-
-                if (p == 80 || p == 8080) {
+                if (p in listOf(80, 8080)) {
                     val (name, type) = httpFingerprint(ip, p)
                     guessedName = guessedName ?: name
                     guessedType = guessedType ?: type
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) { }
         }
 
         if (!open) {
             try {
                 val addr = InetAddress.getByName(ip)
                 if (addr.isReachable(CONNECT_TIMEOUT_MS)) open = true
-            } catch (_: Exception) {}
+            } catch (_: Exception) { }
         }
 
         if (!open) return null
@@ -75,7 +93,7 @@ object NetworkScanner {
         )
     }
 
-    // ---------------- Fingerprint HTTP ----------------
+    // ---------- Fingerprint HTTP ----------
     private fun httpFingerprint(ip: String, port: Int): Pair<String?, String?> {
         return try {
             val url = URL("http://$ip:$port/")
@@ -89,43 +107,41 @@ object NetworkScanner {
             val body = try {
                 BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
             } catch (_: Exception) { "" }
+
             conn.disconnect()
 
             val type = when {
                 body.contains("ESP32", true) || server.contains("ESP", true) -> "ESP32"
+                body.contains("STM32", true) -> "STM32"
                 body.contains("Raspberry", true) || server.contains("raspberry", true) -> "Raspberry"
                 server.contains("Apache", true) || server.contains("nginx", true) -> "Mini-PC"
                 else -> "Mini-PC"
             }
 
-            val name = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE)
-                .find(body)?.groupValues?.getOrNull(1)
-
+            val name = Regex("<title>(.*?)</title>", RegexOption.IGNORE_CASE).find(body)?.groupValues?.getOrNull(1)
             name to type
         } catch (_: Exception) {
             null to null
         }
     }
 
-    // ---------------- Reverse DNS ----------------
+    // ---------- Reverse DNS ----------
     private fun reverseDns(ip: String): String? = try {
-        val addr = InetAddress.getByName(ip)
-        val host = addr.canonicalHostName
-        if (host != ip) host else null
+        InetAddress.getByName(ip).canonicalHostName.let { host -> if (host != ip) host else null }
     } catch (_: Exception) { null }
 
-    // ---------------- Heurística tipo dispositivo ----------------
+    // ---------- Heurística tipo dispositivo ----------
     private fun guessTypeByHeuristics(ip: String): String {
         return if (ip.endsWith(".1")) "Gateway" else "Mini-PC"
     }
 
-    // ---------------- Expandir subred ----------------
+    // ---------- Expandir subred ----------
     private fun expandSubnet(subnetBase: String): List<String> {
         val base = subnetBase.trimEnd('.')
         return (1..254).map { "$base.$it" }
     }
 
-    // ---------------- Obtener subred local ----------------
+    // ---------- Obtener subred local ----------
     private fun getLocalSubnet(): Subnet? {
         val nifs = NetworkInterface.getNetworkInterfaces() ?: return null
         for (ni in Collections.list(nifs)) {
