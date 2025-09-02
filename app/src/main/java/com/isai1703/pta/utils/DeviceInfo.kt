@@ -1,7 +1,8 @@
 package com.isai1703.pta.utils
 
-data class NetDevice(
+data class DeviceInfo(
     val ip: String,
-    val name: String = "",
+    val mac: String = "",
+    val hostname: String = "",
     val type: String = "Desconocido"
 )
