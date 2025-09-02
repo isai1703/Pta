@@ -15,20 +15,17 @@ object NetworkScanner {
     private const val CONNECT_TIMEOUT_MS = 550
     private const val HTTP_READ_TIMEOUT_MS = 700
 
-    // Subredes comunes fallback multi-red
-    private val commonSubnets = listOf(
-        "192.168.0",
-        "192.168.1",
-        "192.168.100",
-        "10.0.0"
-    )
+    // Subredes comunes fallback (puedes modificar/agregar)
+    private val commonSubnets = listOf("192.168.0", "192.168.1", "192.168.100", "10.0.0")
 
-    // ---------- Escaneo profundo con parámetro de subred ----------
-    suspend fun scanSubnetDeep(subnet: String): List<NetDevice> = withContext(Dispatchers.IO) {
+    /**
+     * Escanea la subred indicada (base: "192.168.1") y devuelve NetDevice list.
+     * Internamente hace chunked y usa coroutines para paralelizar.
+     */
+    suspend fun scanSubnetDeep(subnet: String, chunkSize: Int = 32): List<NetDevice> = withContext(Dispatchers.IO) {
         val ips = expandSubnet(subnet)
-        val chunks = ips.chunked(32)
+        val chunks = ips.chunked(chunkSize)
         val results = mutableListOf<NetDevice>()
-
         for (chunk in chunks) {
             val deferred = chunk.map { ip -> async { probeHost(ip) } }
             results += deferred.awaitAll().filterNotNull()
@@ -36,30 +33,59 @@ object NetworkScanner {
         results
     }
 
-    // ---------- Escaneo de subred local ----------
-    suspend fun scanSubnetDeep(): List<NetDevice> = withContext(Dispatchers.IO) {
-        val subnet = getLocalSubnet()?.base ?: return@withContext emptyList()
-        scanSubnetDeep(subnet)
+    /**
+     * Escaneo con reporte de progreso por chunk. progress(scanned, total)
+     */
+    suspend fun scanSubnetDeepWithProgress(
+        subnet: String,
+        chunkSize: Int = 32,
+        progress: (scanned: Int, total: Int) -> Unit
+    ): List<NetDevice> = withContext(Dispatchers.IO) {
+        val ips = expandSubnet(subnet)
+        val total = ips.size
+        var scanned = 0
+        val chunks = ips.chunked(chunkSize)
+        val results = mutableListOf<NetDevice>()
+        for (chunk in chunks) {
+            val deferred = chunk.map { ip -> async { probeHost(ip) } }
+            val found = deferred.awaitAll().filterNotNull()
+            results += found
+            scanned += chunk.size
+            try { progress(scanned, total) } catch (_: Exception) {}
+        }
+        results
     }
 
-    // ---------- Escaneo multi-red (devuelve primera máquina encontrada) ----------
-    suspend fun scanForMachine(): NetDevice? {
-        // Primero subred local
-        getLocalSubnet()?.let { localSubnet ->
-            val devices = scanSubnetDeep(localSubnet.base)
-            devices.firstOrNull { it.type in listOf("ESP32", "STM32") || it.name.contains("Machine", true) }?.let { return it }
-        }
+    /**
+     * Escanea subred local + subredes comunes buscando la máquina.
+     * progress(scannedTotal, totalToScan, found)
+     */
+    suspend fun scanForMachineWithProgress(chunkSize: Int = 32,
+                                           progress: (scanned: Int, total: Int, found: NetDevice?) -> Unit
+    ): NetDevice? = withContext(Dispatchers.IO) {
+        val subnets = mutableListOf<String>()
+        getLocalSubnet()?.base?.let { subnets.add(it) }
+        for (s in commonSubnets) if (!subnets.contains(s)) subnets.add(s)
+        val totalToScan = subnets.size * 254
+        var scannedTotal = 0
 
-        // Luego subredes comunes
-        for (subnet in commonSubnets) {
-            val devices = scanSubnetDeep(subnet)
-            devices.firstOrNull { it.type in listOf("ESP32", "STM32") || it.name.contains("Machine", true) }?.let { return it }
+        for (subnet in subnets) {
+            val ips = expandSubnet(subnet)
+            val chunks = ips.chunked(chunkSize)
+            for (chunk in chunks) {
+                val deferred = chunk.map { ip -> async { probeHost(ip) } }
+                val found = deferred.awaitAll().filterNotNull()
+                scannedTotal += chunk.size
+                val vending = found.firstOrNull { it.type in listOf("ESP32", "STM32") || it.name.contains("Machine", true) }
+                try { progress(scannedTotal, totalToScan, vending) } catch (_: Exception) {}
+                if (vending != null) return@withContext vending
+            }
         }
-
-        return null
+        try { progress(scannedTotal, totalToScan, null) } catch (_: Exception) {}
+        null
     }
 
-    // ---------- Escaneo de host individual ----------
+    // Intenta puertos comunes y fingerprint HTTP
     private fun probeHost(ip: String): NetDevice? {
         var open = false
         var guessedName: String? = null
@@ -69,31 +95,26 @@ object NetworkScanner {
             try {
                 Socket().use { s -> s.connect(InetSocketAddress(ip, p), CONNECT_TIMEOUT_MS) }
                 open = true
-                if (p in listOf(80, 8080)) {
+                if (p == 80 || p == 8080) {
                     val (name, type) = httpFingerprint(ip, p)
                     guessedName = guessedName ?: name
                     guessedType = guessedType ?: type
                 }
-            } catch (_: Exception) { }
+            } catch (_: Exception) {}
         }
 
         if (!open) {
             try {
                 val addr = InetAddress.getByName(ip)
                 if (addr.isReachable(CONNECT_TIMEOUT_MS)) open = true
-            } catch (_: Exception) { }
+            } catch (_: Exception) {}
         }
 
         if (!open) return null
 
-        return NetDevice(
-            ip = ip,
-            name = guessedName ?: reverseDns(ip) ?: "Dispositivo",
-            type = guessedType ?: guessTypeByHeuristics(ip)
-        )
+        return NetDevice(ip = ip, name = guessedName ?: reverseDns(ip) ?: "Dispositivo", type = guessedType ?: guessTypeByHeuristics(ip))
     }
 
-    // ---------- Fingerprint HTTP ----------
     private fun httpFingerprint(ip: String, port: Int): Pair<String?, String?> {
         return try {
             val url = URL("http://$ip:$port/")
@@ -104,10 +125,7 @@ object NetworkScanner {
             }
 
             val server = conn.getHeaderField("Server") ?: ""
-            val body = try {
-                BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
-            } catch (_: Exception) { "" }
-
+            val body = try { BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() } } catch (_: Exception) { "" }
             conn.disconnect()
 
             val type = when {
@@ -125,23 +143,18 @@ object NetworkScanner {
         }
     }
 
-    // ---------- Reverse DNS ----------
     private fun reverseDns(ip: String): String? = try {
-        InetAddress.getByName(ip).canonicalHostName.let { host -> if (host != ip) host else null }
+        val host = InetAddress.getByName(ip).canonicalHostName
+        if (host != ip) host else null
     } catch (_: Exception) { null }
 
-    // ---------- Heurística tipo dispositivo ----------
-    private fun guessTypeByHeuristics(ip: String): String {
-        return if (ip.endsWith(".1")) "Gateway" else "Mini-PC"
-    }
+    private fun guessTypeByHeuristics(ip: String): String = if (ip.endsWith(".1")) "Gateway" else "Mini-PC"
 
-    // ---------- Expandir subred ----------
     private fun expandSubnet(subnetBase: String): List<String> {
         val base = subnetBase.trimEnd('.')
         return (1..254).map { "$base.$it" }
     }
 
-    // ---------- Obtener subred local ----------
     private fun getLocalSubnet(): Subnet? {
         val nifs = NetworkInterface.getNetworkInterfaces() ?: return null
         for (ni in Collections.list(nifs)) {

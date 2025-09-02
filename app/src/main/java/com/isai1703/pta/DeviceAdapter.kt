@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.isai1703.pta.utils.DeviceInfo
 
 class DeviceAdapter(
     private val devices: List<DeviceInfo>,
@@ -20,7 +21,7 @@ class DeviceAdapter(
 
         init {
             view.setOnClickListener {
-                val pos = bindingAdapterPosition // ✅ reemplazo moderno
+                val pos = bindingAdapterPosition
                 if (pos != RecyclerView.NO_POSITION) {
                     selectedPosition = pos
                     notifyDataSetChanged()
@@ -31,20 +32,17 @@ class DeviceAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DeviceViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_device, parent, false)
-        return DeviceViewHolder(view)
+        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_device, parent, false)
+        return DeviceViewHolder(v)
     }
 
     override fun onBindViewHolder(holder: DeviceViewHolder, position: Int) {
-        val device = devices[position]
-        holder.tvName.text = device.name
-        holder.tvIp.text = device.ip
-        holder.tvType.text = device.type
-
-        // ✅ destacar el seleccionado
+        val d = devices[position]
+        holder.tvName.text = d.name
+        holder.tvIp.text = d.ip
+        holder.tvType.text = d.type
         holder.itemView.isSelected = (position == selectedPosition)
     }
 
-    override fun getItemCount() = devices.size
+    override fun getItemCount(): Int = devices.size
 }

@@ -1,6 +1,9 @@
+// build.gradle.kts (nivel módulo :app)
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("kotlin-kapt")
 }
 
 android {
@@ -9,11 +12,13 @@ android {
 
     defaultConfig {
         applicationId = "com.isai1703.pta"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables.useSupportLibrary = true
     }
 
     buildTypes {
@@ -24,9 +29,15 @@ android {
                 "proguard-rules.pro"
             )
         }
+        debug {
+            isDebuggable = true
+        }
     }
 
-    // Compatibilidad con Java 17
+    buildFeatures {
+        viewBinding = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -35,46 +46,42 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
-
-    // Habilitamos ViewBinding (usado en tu MainActivity y Adapter)
-    buildFeatures {
-        viewBinding = true
-    }
-
-    // Evita errores por librerías duplicadas (útil para ESP32/Raspberry)
-    packaging {
-        resources {
-            pickFirsts.add("**/*.so")
-            pickFirsts.add("**/*.jar")
-        }
-    }
 }
 
 dependencies {
-    // AndroidX básicos
+    // AndroidX base
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("androidx.recyclerview:recyclerview:1.3.1")
-    implementation("androidx.legacy:legacy-support-v4:1.0.0")
-    implementation("androidx.viewpager2:viewpager2:1.0.0")
 
-    // Ciclo de vida y Activity
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
-    implementation("androidx.activity:activity-ktx:1.7.2")
+    // RecyclerView
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
 
-    // Kotlin coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    // Room (persistencia de productos)
+    implementation("androidx.room:room-runtime:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
 
-    // Cliente HTTP (para conexión WiFi/ESP32)
-    implementation("com.squareup.okhttp3:okhttp:4.9.3")
-
-    // JSON con Gson
+    // Gson (manejo de JSON)
     implementation("com.google.code.gson:gson:2.10.1")
+
+    // Coroutines (escaneo WiFi y procesos en background)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    // Bluetooth y conexiones
+    implementation("androidx.activity:activity-ktx:1.9.0")
+
+    // Glide (para cargar imágenes desde galería)
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    kapt("com.github.bumptech.glide:compiler:4.16.0")
+
+    // Lifecycle
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.4")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 }

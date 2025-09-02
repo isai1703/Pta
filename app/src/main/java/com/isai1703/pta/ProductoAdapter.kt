@@ -8,7 +8,6 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.isai1703.pta.R
 
 class ProductoAdapter(
     private val productos: List<Producto>,
@@ -30,8 +29,7 @@ class ProductoAdapter(
 
         if (!producto.imagenPath.isNullOrEmpty()) {
             try {
-                val uri = Uri.parse(producto.imagenPath)
-                holder.ivProducto.setImageURI(uri)
+                holder.ivProducto.setImageURI(Uri.parse(producto.imagenPath))
             } catch (_: Exception) { holder.ivProducto.setImageResource(R.drawable.icon_prueba) }
         } else {
             holder.ivProducto.setImageResource(R.drawable.icon_prueba)
