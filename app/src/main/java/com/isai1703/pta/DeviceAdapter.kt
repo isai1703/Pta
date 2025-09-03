@@ -1,11 +1,11 @@
 package com.isai1703.pta
-
+com.isai1703.pta
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.isai1703.pta.utils.DeviceInfo
+import com.isai1703.pta.model.DeviceInfo
 
 class DeviceAdapter(
     private val devices: List<DeviceInfo>,

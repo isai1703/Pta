@@ -18,6 +18,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.isai1703.pta.model.DeviceInfo
 import com.isai1703.pta.utils.*
 import kotlinx.coroutines.*
 import java.io.File
