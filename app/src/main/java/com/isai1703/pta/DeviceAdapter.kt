@@ -1,5 +1,5 @@
-package com.isai1703.pta
-com.isai1703.pta
+package com.isai1703.pta.model.DeviceInfo
+
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
