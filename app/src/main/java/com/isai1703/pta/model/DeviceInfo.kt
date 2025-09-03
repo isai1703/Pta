@@ -1,4 +1,4 @@
-package com.tu_paquete.model
+package com.isai1703.pta.model
 
 data class DeviceInfo(
     val ip: String,

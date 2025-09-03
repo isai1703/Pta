@@ -1,4 +1,4 @@
-package com.isai1703.pta.model.DeviceInfo
+package com.isai1703.pta
 
 import android.view.LayoutInflater
 import android.view.View
