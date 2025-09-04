@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.isai1703.pta.model.DeviceInfo
+import com.isai1703.pta.network.NetworkClient   // ✅ agregado
 import com.isai1703.pta.utils.*
 import kotlinx.coroutines.*
 import java.io.File
@@ -50,7 +51,7 @@ class MainActivity : AppCompatActivity() {
     // Permissions
     private val REQUEST_CODE_PERMISSIONS = 1001
 
-    // Image picker for dialog
+    // Image picker
     private var currentDialogImageView: ImageView? = null
     private var pendingImageUri: Uri? = null
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -108,7 +109,6 @@ class MainActivity : AppCompatActivity() {
         listaProductos.clear()
         listaProductos.addAll(ProductStorage.loadProducts(this))
         if (listaProductos.isEmpty()) {
-            // Seed minimal example; user will add real products (52) from app
             listaProductos += listOf(
                 Producto(1, "Producto 1", "$10", null, "dispense?product=1"),
                 Producto(2, "Producto 2", "$20", null, "dispense?product=2")
@@ -116,14 +116,15 @@ class MainActivity : AppCompatActivity() {
             ProductStorage.saveProducts(this, listaProductos)
         }
 
-        // Productos RecyclerView
+        // Recycler Productos
         recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = ProductoAdapter(listaProductos,
+        recyclerView.adapter = ProductoAdapter(
+            listaProductos,
             onSendCommandClick = { producto -> sendCommandFromProducto(producto) },
             onEditClick = { producto -> openAddEditDialog(producto) }
         )
 
-        // Dispositivos RecyclerView
+        // Recycler Dispositivos
         recyclerViewDevices.layoutManager = LinearLayoutManager(this)
         recyclerViewDevices.adapter = DeviceAdapter(dispositivosDetectados) { selected ->
             dispositivoSeleccionado = selected
@@ -140,7 +141,7 @@ class MainActivity : AppCompatActivity() {
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
     }
 
-    // Permissions
+    // -------- PERMISOS
     private fun checkAndRequestPermissions() {
         val permissionsToRequest = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -152,7 +153,6 @@ class MainActivity : AppCompatActivity() {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
                 permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED)
                 permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
@@ -160,29 +160,23 @@ class MainActivity : AppCompatActivity() {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
                 permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
-
         if (permissionsToRequest.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), REQUEST_CODE_PERMISSIONS)
         }
     }
 
-    // Scan devices (WiFi + Bluetooth) with progress UI
+    // -------- ESCANEO DE DISPOSITIVOS
     private fun scanDevices() {
         dispositivosDetectados.clear()
         recyclerViewDevices.adapter?.notifyDataSetChanged()
-
         progressBar.progress = 0
         progressBar.max = 100
         tvProgress.text = "Inicializando escaneo..."
-
-        // Start BT scan
         startBluetoothScan()
 
-        // WiFi scan with progress and detection
         CoroutineScope(Dispatchers.Main).launch {
             tvProgress.text = "Escaneando subredes..."
             progressBar.progress = 0
-
             val found = withContext(Dispatchers.IO) {
                 NetworkScanner.scanForMachineWithProgress(chunkSize = 32) { scanned, total, foundDevice ->
                     runOnUiThread {
@@ -199,12 +193,17 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
-
             if (found != null) {
-                runOnUiThread { tvProgress.text = "Máquina encontrada: ${found.ip}"; progressBar.progress = 100 }
+                runOnUiThread {
+                    tvProgress.text = "Máquina encontrada: ${found.ip}"
+                    progressBar.progress = 100
+                }
                 saveDetectedIp(found.ip)
             } else {
-                runOnUiThread { tvProgress.text = "Escaneo finalizado. ${dispositivosDetectados.size} dispositivos detectados."; progressBar.progress = 100 }
+                runOnUiThread {
+                    tvProgress.text = "Escaneo finalizado. ${dispositivosDetectados.size} dispositivos detectados."
+                    progressBar.progress = 100
+                }
             }
         }
     }
@@ -214,21 +213,18 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Bluetooth no disponible", Toast.LENGTH_SHORT).show()
             return
         }
-
         val ok = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
         } else {
             ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         }
-
         if (!ok) { checkAndRequestPermissions(); return }
-
         if (adapter.isDiscovering) try { adapter.cancelDiscovery() } catch (_: Exception) {}
         try { registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND)) } catch (_: Exception) {}
         try { adapter.startDiscovery() } catch (_: Exception) {}
     }
 
-    // Add / Edit product dialog
+    // -------- DIALOG PRODUCTO
     private fun openAddEditDialog(producto: Producto?) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_add_edit_producto, null)
         val etNombre = dialogView.findViewById<EditText>(R.id.etNombreProducto)
@@ -243,10 +239,8 @@ class MainActivity : AppCompatActivity() {
             etComando.setText(it.comando)
             it.imagenPath?.let { path -> ivProductoDialog.setImageURI(Uri.parse(path)) }
         }
-
         currentDialogImageView = ivProductoDialog
         pendingImageUri = producto?.imagenPath?.let { Uri.parse(it) }
-
         btnSeleccionarImagen.setOnClickListener { pickImageLauncher.launch("image/*") }
 
         val dialog = AlertDialog.Builder(this)
@@ -257,13 +251,14 @@ class MainActivity : AppCompatActivity() {
                 val precio = etPrecio.text.toString().trim()
                 val comando = etComando.text.toString().trim()
                 val imagenPath = pendingImageUri?.toString()
-
                 if (producto == null) {
-                    val nuevo = Producto(id = (listaProductos.maxOfOrNull { it.id } ?: 0) + 1,
+                    val nuevo = Producto(
+                        id = (listaProductos.maxOfOrNull { it.id } ?: 0) + 1,
                         nombre = nombre.ifEmpty { "Sin nombre" },
                         precio = if (precio.isEmpty()) "$0" else precio,
                         imagenPath = imagenPath,
-                        comando = comando)
+                        comando = comando
+                    )
                     listaProductos.add(nuevo)
                 } else {
                     producto.nombre = nombre.ifEmpty { producto.nombre }
@@ -271,7 +266,6 @@ class MainActivity : AppCompatActivity() {
                     producto.comando = comando
                     producto.imagenPath = imagenPath ?: producto.imagenPath
                 }
-
                 ProductStorage.saveProducts(this, listaProductos)
                 recyclerView.adapter?.notifyDataSetChanged()
                 currentDialogImageView = null
@@ -285,7 +279,7 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // Save detected IP into internal config.txt (filesDir)
+    // -------- CONFIG FILE
     private fun saveDetectedIp(ip: String) {
         try {
             val file = File(filesDir, "config.txt")
@@ -294,30 +288,19 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {}
     }
 
-    // Send commands
+    // -------- COMANDOS
     private fun sendCommandFromProducto(producto: Producto) {
-        val dispositivo = dispositivoSeleccionado
-        if (dispositivo == null) {
+        val dispositivo = dispositivoSeleccionado ?: run {
             Toast.makeText(this, "Selecciona un dispositivo primero", Toast.LENGTH_SHORT).show()
             return
         }
-
-        // If device type suggests BT-only, skip HTTP attempt (but we keep fallback)
         if (dispositivo.type.contains("STM32", true)) {
-            // Bluetooth sending - placeholder (requires RFCOMM implementation)
-            Toast.makeText(this, "STM32: enviar por Bluetooth (revisar pairing/UUID)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "STM32: enviar por Bluetooth (RFCOMM pendiente)", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // HTTP send
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                sendCommandWifiBlocking(dispositivo.ip, producto.comando.ifEmpty { producto.nombre })
-                withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Comando enviado a ${dispositivo.ip}", Toast.LENGTH_SHORT).show() }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) { Toast.makeText(this@MainActivity, "Error enviando: ${e.message}", Toast.LENGTH_SHORT).show() }
-            }
-        }
+        // ✅ Nuevo: probar con NetworkClient (HTTP)
+        sendCommandWifiHttp(dispositivo.ip, producto.comando.ifEmpty { producto.nombre })
     }
 
     private fun sendToAllDevices() {
@@ -330,10 +313,8 @@ class MainActivity : AppCompatActivity() {
                 val res = mutableListOf<Pair<String, Boolean>>()
                 for (dev in dispositivosDetectados) {
                     for (prod in listaProductos) {
-                        try {
-                            sendCommandWifiBlocking(dev.ip, prod.comando.ifEmpty { prod.nombre })
-                            res.add(dev.ip to true)
-                        } catch (_: Exception) { res.add(dev.ip to false) }
+                        val ok = NetworkClient.sendCommand(dev.ip, 80, prod.comando.ifEmpty { prod.nombre }) != null
+                        res.add(dev.ip to ok)
                     }
                 }
                 res
@@ -344,7 +325,34 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Blocking HTTP GET (IO thread)
+    // -------- FUNCIONES AUXILIARES HTTP usando NetworkClient
+    private fun sendCommandWifiHttp(ip: String, command: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val response = NetworkClient.sendCommand(ip, 80, command)
+            runOnUiThread {
+                if (response != null) {
+                    Toast.makeText(this@MainActivity, "Respuesta de $ip: $response", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@MainActivity, "Error al enviar comando HTTP a $ip", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun getDeviceStatus(ip: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val status = NetworkClient.getStatus(ip, 80)
+            runOnUiThread {
+                if (status != null) {
+                    Toast.makeText(this@MainActivity, "Estado de $ip: $status", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@MainActivity, "No se pudo obtener el estado de $ip", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // -------- Legacy blocking (mantener por compatibilidad)
     @Throws(Exception::class)
     private fun sendCommandWifiBlocking(ip: String, command: String) {
         val url = URL("http://$ip/$command")
