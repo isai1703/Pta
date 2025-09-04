@@ -19,7 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.isai1703.pta.model.DeviceInfo
-import com.isai1703.pta.network.NetworkClient   // ✅ agregado
+import com.isai1703.pta.network.NetworkClient
 import com.isai1703.pta.utils.*
 import kotlinx.coroutines.*
 import java.io.File
@@ -28,7 +28,6 @@ import java.net.URL
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
-
     // UI
     private lateinit var recyclerView: RecyclerView
     private lateinit var recyclerViewDevices: RecyclerView
@@ -42,6 +41,9 @@ class MainActivity : AppCompatActivity() {
     private val listaProductos = mutableListOf<Producto>()
     private val dispositivosDetectados = mutableListOf<DeviceInfo>()
     private var dispositivoSeleccionado: DeviceInfo? = null
+
+    // Cliente de red/Bluetooth actual
+    private var networkClient: NetworkClient? = null
 
     // Bluetooth
     private val bluetoothAdapter: BluetoothAdapter? by lazy {
@@ -71,7 +73,6 @@ class MainActivity : AppCompatActivity() {
                     val hasBtConnect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
                     } else true
-
                     val majorClass = if (hasBtConnect) it.bluetoothClass?.majorDeviceClass else null
                     val typeName = when (majorClass) {
                         BluetoothClass.Device.Major.COMPUTER -> "Mini-PC"
@@ -80,7 +81,11 @@ class MainActivity : AppCompatActivity() {
                         else -> "Desconocido"
                     }
                     val dName = if (hasBtConnect) it.name else null
-                    val info = DeviceInfo(ip = it.address, type = typeName, name = dName ?: "Desconocido")
+                    val info = DeviceInfo(
+                        ip = it.address,
+                        name = dName ?: "Desconocido",
+                        type = com.isai1703.pta.model.DeviceType.BLUETOOTH
+                    )
                     if (!dispositivosDetectados.any { d -> d.ip == info.ip }) {
                         dispositivosDetectados.add(info)
                         recyclerViewDevices.adapter?.notifyDataSetChanged()
@@ -139,6 +144,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
+        networkClient?.disconnect()
     }
 
     // -------- PERMISOS
@@ -224,61 +230,6 @@ class MainActivity : AppCompatActivity() {
         try { adapter.startDiscovery() } catch (_: Exception) {}
     }
 
-    // -------- DIALOG PRODUCTO
-    private fun openAddEditDialog(producto: Producto?) {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_add_edit_producto, null)
-        val etNombre = dialogView.findViewById<EditText>(R.id.etNombreProducto)
-        val etPrecio = dialogView.findViewById<EditText>(R.id.etPrecioProducto)
-        val etComando = dialogView.findViewById<EditText>(R.id.etComandoProducto)
-        val ivProductoDialog = dialogView.findViewById<ImageView>(R.id.ivProductoDialog)
-        val btnSeleccionarImagen = dialogView.findViewById<Button>(R.id.btnSeleccionarImagen)
-
-        producto?.let {
-            etNombre.setText(it.nombre)
-            etPrecio.setText(it.precio)
-            etComando.setText(it.comando)
-            it.imagenPath?.let { path -> ivProductoDialog.setImageURI(Uri.parse(path)) }
-        }
-        currentDialogImageView = ivProductoDialog
-        pendingImageUri = producto?.imagenPath?.let { Uri.parse(it) }
-        btnSeleccionarImagen.setOnClickListener { pickImageLauncher.launch("image/*") }
-
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(if (producto == null) "Agregar Producto" else "Editar Producto")
-            .setView(dialogView)
-            .setPositiveButton("Guardar") { _, _ ->
-                val nombre = etNombre.text.toString().trim()
-                val precio = etPrecio.text.toString().trim()
-                val comando = etComando.text.toString().trim()
-                val imagenPath = pendingImageUri?.toString()
-                if (producto == null) {
-                    val nuevo = Producto(
-                        id = (listaProductos.maxOfOrNull { it.id } ?: 0) + 1,
-                        nombre = nombre.ifEmpty { "Sin nombre" },
-                        precio = if (precio.isEmpty()) "$0" else precio,
-                        imagenPath = imagenPath,
-                        comando = comando
-                    )
-                    listaProductos.add(nuevo)
-                } else {
-                    producto.nombre = nombre.ifEmpty { producto.nombre }
-                    producto.precio = if (precio.isEmpty()) producto.precio else precio
-                    producto.comando = comando
-                    producto.imagenPath = imagenPath ?: producto.imagenPath
-                }
-                ProductStorage.saveProducts(this, listaProductos)
-                recyclerView.adapter?.notifyDataSetChanged()
-                currentDialogImageView = null
-                pendingImageUri = null
-            }
-            .setNegativeButton("Cancelar") { _, _ ->
-                currentDialogImageView = null
-                pendingImageUri = null
-            }
-            .create()
-        dialog.show()
-    }
-
     // -------- CONFIG FILE
     private fun saveDetectedIp(ip: String) {
         try {
@@ -294,13 +245,18 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Selecciona un dispositivo primero", Toast.LENGTH_SHORT).show()
             return
         }
-        if (dispositivo.type.contains("STM32", true)) {
-            Toast.makeText(this, "STM32: enviar por Bluetooth (RFCOMM pendiente)", Toast.LENGTH_SHORT).show()
+
+        // Crear cliente según dispositivo
+        networkClient = NetworkClient(dispositivo)
+        val connected = networkClient?.connect() ?: false
+        if (!connected) {
+            Toast.makeText(this, "No se pudo conectar con ${dispositivo.name}", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // ✅ Nuevo: probar con NetworkClient (HTTP)
-        sendCommandWifiHttp(dispositivo.ip, producto.comando.ifEmpty { producto.nombre })
+        // Enviar comando
+        val ok = networkClient?.sendCommand(producto.comando.ifEmpty { producto.nombre }) ?: false
+        Toast.makeText(this, if (ok) "Comando enviado a ${dispositivo.name}" else "Error al enviar comando", Toast.LENGTH_SHORT).show()
     }
 
     private fun sendToAllDevices() {
@@ -312,9 +268,16 @@ class MainActivity : AppCompatActivity() {
             val results = withContext(Dispatchers.IO) {
                 val res = mutableListOf<Pair<String, Boolean>>()
                 for (dev in dispositivosDetectados) {
-                    for (prod in listaProductos) {
-                        val ok = NetworkClient.sendCommand(dev.ip, 80, prod.comando.ifEmpty { prod.nombre }) != null
-                        res.add(dev.ip to ok)
+                    val client = NetworkClient(dev)
+                    val connected = client.connect()
+                    if (connected) {
+                        for (prod in listaProductos) {
+                            val ok = client.sendCommand(prod.comando.ifEmpty { prod.nombre })
+                            res.add(dev.ip ?: "?" to ok)
+                        }
+                        client.disconnect()
+                    } else {
+                        res.add(dev.ip ?: "?" to false)
                     }
                 }
                 res
@@ -322,48 +285,6 @@ class MainActivity : AppCompatActivity() {
             val ok = results.count { it.second }
             tvProgress.text = "Envíos completados: $ok success"
             Toast.makeText(this@MainActivity, "Envíos finalizados", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // -------- FUNCIONES AUXILIARES HTTP usando NetworkClient
-    private fun sendCommandWifiHttp(ip: String, command: String) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val response = NetworkClient.sendCommand(ip, 80, command)
-            runOnUiThread {
-                if (response != null) {
-                    Toast.makeText(this@MainActivity, "Respuesta de $ip: $response", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this@MainActivity, "Error al enviar comando HTTP a $ip", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    private fun getDeviceStatus(ip: String) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val status = NetworkClient.getStatus(ip, 80)
-            runOnUiThread {
-                if (status != null) {
-                    Toast.makeText(this@MainActivity, "Estado de $ip: $status", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this@MainActivity, "No se pudo obtener el estado de $ip", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    // -------- Legacy blocking (mantener por compatibilidad)
-    @Throws(Exception::class)
-    private fun sendCommandWifiBlocking(ip: String, command: String) {
-        val url = URL("http://$ip/$command")
-        val conn = url.openConnection() as HttpURLConnection
-        conn.connectTimeout = 2500
-        conn.readTimeout = 2500
-        conn.requestMethod = "GET"
-        try {
-            conn.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            conn.disconnect()
         }
     }
 }

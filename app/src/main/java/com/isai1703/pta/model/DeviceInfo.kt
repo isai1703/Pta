@@ -1,9 +1,18 @@
 package com.isai1703.pta.model
 
+/**
+ * Modelo genérico de dispositivo en red o Bluetooth.
+ * Compatible con ESP32, Raspberry Pi, etc.
+ */
 data class DeviceInfo(
-    val name: String = "",             // ✅ agregado
-    val ip: String,
-    val type: String,
-    val openPorts: List<Int> = emptyList(),
-    val details: String = ""
+    val ip: String? = null,
+    val port: Int? = null,
+    val macAddress: String? = null,
+    val name: String? = null,
+    val type: DeviceType
 )
+
+enum class DeviceType {
+    WIFI,
+    BLUETOOTH
+}
