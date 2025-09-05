@@ -18,30 +18,30 @@ class DeviceAdapter(
         val tvName: TextView = view.findViewById(R.id.tvDeviceName)
         val tvIp: TextView = view.findViewById(R.id.tvDeviceIp)
         val tvType: TextView = view.findViewById(R.id.tvDeviceType)
-
-        init {
-            view.setOnClickListener {
-                val pos = bindingAdapterPosition
-                if (pos != RecyclerView.NO_POSITION) {
-                    selectedPosition = pos
-                    notifyDataSetChanged()
-                    onDeviceSelected(devices[pos])
-                }
-            }
-        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DeviceViewHolder {
-        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_device, parent, false)
-        return DeviceViewHolder(v)
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_device, parent, false)
+        return DeviceViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: DeviceViewHolder, position: Int) {
-        val d = devices[position]
-        holder.tvName.text = d.name
-        holder.tvIp.text = d.ip
-        holder.tvType.text = d.type
+        val device = devices[position]
+
+        holder.tvName.text = device.name ?: "Desconocido"
+        holder.tvIp.text = device.ip
+        // <- FIX: DeviceType (o cualquier otro tipo) como texto
+        holder.tvType.text = device.type?.toString() ?: "—"
+
         holder.itemView.isSelected = (position == selectedPosition)
+        holder.itemView.setOnClickListener {
+            val previous = selectedPosition
+            selectedPosition = holder.adapterPosition
+            if (previous != -1) notifyItemChanged(previous)
+            notifyItemChanged(selectedPosition)
+            onDeviceSelected(device)
+        }
     }
 
     override fun getItemCount(): Int = devices.size
