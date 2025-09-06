@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothClass
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -18,14 +19,12 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.isai1703.pta.manager.DeviceManager
 import com.isai1703.pta.model.DeviceInfo
-import com.isai1703.pta.network.NetworkClient
+import com.isai1703.pta.model.DeviceType
 import com.isai1703.pta.utils.*
 import kotlinx.coroutines.*
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.*
 
 class MainActivity : AppCompatActivity() {
     // UI
@@ -42,13 +41,13 @@ class MainActivity : AppCompatActivity() {
     private val dispositivosDetectados = mutableListOf<DeviceInfo>()
     private var dispositivoSeleccionado: DeviceInfo? = null
 
-    // Cliente de red/Bluetooth actual
-    private var networkClient: NetworkClient? = null
-
     // Bluetooth
     private val bluetoothAdapter: BluetoothAdapter? by lazy {
         (getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
     }
+
+    // Device Manager (maneja todos los tipos de clientes: ESP32, Raspberry, etc.)
+    private val deviceManager = DeviceManager()
 
     // Permissions
     private val REQUEST_CODE_PERMISSIONS = 1001
@@ -56,35 +55,44 @@ class MainActivity : AppCompatActivity() {
     // Image picker
     private var currentDialogImageView: ImageView? = null
     private var pendingImageUri: Uri? = null
-    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { pendingImageUri = it; currentDialogImageView?.setImageURI(it) }
-    }
+    private val pickImageLauncher =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            uri?.let { pendingImageUri = it; currentDialogImageView?.setImageURI(it) }
+        }
 
     // Bluetooth discovery receiver
     private val bluetoothReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
             if (intent?.action == BluetoothDevice.ACTION_FOUND) {
-                val device: BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-                } else {
-                    @Suppress("DEPRECATION") intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                }
+                val device: BluetoothDevice? =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    }
                 device?.let {
                     val hasBtConnect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+                        ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.BLUETOOTH_CONNECT
+                        ) == PackageManager.PERMISSION_GRANTED
                     } else true
-                    val majorClass = if (hasBtConnect) it.bluetoothClass?.majorDeviceClass else null
+
+                    val majorClass =
+                        if (hasBtConnect) it.bluetoothClass?.majorDeviceClass else null
                     val typeName = when (majorClass) {
                         BluetoothClass.Device.Major.COMPUTER -> "Mini-PC"
                         BluetoothClass.Device.Major.PERIPHERAL -> "ESP32/STM32"
                         BluetoothClass.Device.Major.PHONE -> "Raspberry"
                         else -> "Desconocido"
                     }
+
                     val dName = if (hasBtConnect) it.name else null
                     val info = DeviceInfo(
                         ip = it.address,
                         name = dName ?: "Desconocido",
-                        type = com.isai1703.pta.model.DeviceType.BLUETOOTH
+                        type = DeviceType.BLUETOOTH
                     )
                     if (!dispositivosDetectados.any { d -> d.ip == info.ip }) {
                         dispositivosDetectados.add(info)
@@ -143,31 +151,62 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        try { unregisterReceiver(bluetoothReceiver) } catch (_: Exception) {}
-        networkClient?.disconnect()
+        try {
+            unregisterReceiver(bluetoothReceiver)
+        } catch (_: Exception) {
+        }
+        deviceManager.disconnect()
     }
 
     // -------- PERMISOS
     private fun checkAndRequestPermissions() {
         val permissionsToRequest = mutableListOf<String>()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED)
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                ) != PackageManager.PERMISSION_GRANTED
+            )
                 permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED)
+
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.BLUETOOTH_SCAN
+                ) != PackageManager.PERMISSION_GRANTED
+            )
                 permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
         } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
+            )
                 permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED)
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_MEDIA_IMAGES
+                ) != PackageManager.PERMISSION_GRANTED
+            )
                 permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
         } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) != PackageManager.PERMISSION_GRANTED
+            )
                 permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
+
         if (permissionsToRequest.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), REQUEST_CODE_PERMISSIONS)
+            ActivityCompat.requestPermissions(
+                this,
+                permissionsToRequest.toTypedArray(),
+                REQUEST_CODE_PERMISSIONS
+            )
         }
     }
 
@@ -207,7 +246,8 @@ class MainActivity : AppCompatActivity() {
                 saveDetectedIp(found.ip)
             } else {
                 runOnUiThread {
-                    tvProgress.text = "Escaneo finalizado. ${dispositivosDetectados.size} dispositivos detectados."
+                    tvProgress.text =
+                        "Escaneo finalizado. ${dispositivosDetectados.size} dispositivos detectados."
                     progressBar.progress = 100
                 }
             }
@@ -220,14 +260,31 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val ok = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_SCAN
+            ) == PackageManager.PERMISSION_GRANTED
         } else {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
         }
-        if (!ok) { checkAndRequestPermissions(); return }
-        if (adapter.isDiscovering) try { adapter.cancelDiscovery() } catch (_: Exception) {}
-        try { registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND)) } catch (_: Exception) {}
-        try { adapter.startDiscovery() } catch (_: Exception) {}
+        if (!ok) {
+            checkAndRequestPermissions(); return
+        }
+        if (adapter.isDiscovering) try {
+            adapter.cancelDiscovery()
+        } catch (_: Exception) {
+        }
+        try {
+            registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
+        } catch (_: Exception) {
+        }
+        try {
+            adapter.startDiscovery()
+        } catch (_: Exception) {
+        }
     }
 
     // -------- CONFIG FILE
@@ -236,7 +293,8 @@ class MainActivity : AppCompatActivity() {
             val file = File(filesDir, "config.txt")
             file.writeText(ip.trim())
             Toast.makeText(this, "IP guardada: $ip", Toast.LENGTH_SHORT).show()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     // -------- COMANDOS
@@ -246,17 +304,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Crear cliente según dispositivo
-        networkClient = NetworkClient(dispositivo)
-        val connected = networkClient?.connect() ?: false
-        if (!connected) {
-            Toast.makeText(this, "No se pudo conectar con ${dispositivo.name}", Toast.LENGTH_SHORT).show()
-            return
+        CoroutineScope(Dispatchers.Main).launch {
+            val result = withContext(Dispatchers.IO) {
+                deviceManager.sendCommandToDevice(dispositivo, producto.comando.ifEmpty { producto.nombre })
+            }
+            Toast.makeText(this, "Respuesta: $result", Toast.LENGTH_SHORT).show()
         }
-
-        // Enviar comando
-        val ok = networkClient?.sendCommand(producto.comando.ifEmpty { producto.nombre }) ?: false
-        Toast.makeText(this, if (ok) "Comando enviado a ${dispositivo.name}" else "Error al enviar comando", Toast.LENGTH_SHORT).show()
     }
 
     private fun sendToAllDevices() {
@@ -266,23 +319,18 @@ class MainActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.Main).launch {
             tvProgress.text = "Enviando a todos..."
             val results = withContext(Dispatchers.IO) {
-                val res = mutableListOf<Pair<String, Boolean>>()
+                val res = mutableListOf<Pair<String, String>>()
                 for (dev in dispositivosDetectados) {
-                    val client = NetworkClient(dev)
-                    val connected = client.connect()
-                    if (connected) {
-                        for (prod in listaProductos) {
-                            val ok = client.sendCommand(prod.comando.ifEmpty { prod.nombre })
-                            res.add(dev.ip ?: "?" to ok)
-                        }
-                        client.disconnect()
-                    } else {
-                        res.add(dev.ip ?: "?" to false)
+                    for (prod in listaProductos) {
+                        val resp = deviceManager.sendCommandToDevice(
+                            dev,
+                            prod.comando.ifEmpty { prod.nombre })
+                        res.add(dev.ip ?: "?" to resp)
                     }
                 }
                 res
             }
-            val ok = results.count { it.second }
+            val ok = results.count { !it.second.startsWith("Error") }
             tvProgress.text = "Envíos completados: $ok success"
             Toast.makeText(this@MainActivity, "Envíos finalizados", Toast.LENGTH_SHORT).show()
         }
