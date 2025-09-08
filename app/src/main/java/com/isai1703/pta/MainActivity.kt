@@ -1,10 +1,7 @@
 package com.isai1703.pta
 
 import android.Manifest
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothClass
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
+import android.bluetooth.*
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
@@ -13,7 +10,6 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -27,6 +23,7 @@ import kotlinx.coroutines.*
 import java.io.File
 
 class MainActivity : AppCompatActivity() {
+
     // UI
     private lateinit var recyclerView: RecyclerView
     private lateinit var recyclerViewDevices: RecyclerView
@@ -46,7 +43,7 @@ class MainActivity : AppCompatActivity() {
         (getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
     }
 
-    // Device Manager (maneja todos los tipos de clientes: ESP32, Raspberry, etc.)
+    // Device Manager
     private val deviceManager = DeviceManager()
 
     // Permissions
@@ -57,7 +54,10 @@ class MainActivity : AppCompatActivity() {
     private var pendingImageUri: Uri? = null
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            uri?.let { pendingImageUri = it; currentDialogImageView?.setImageURI(it) }
+            uri?.let {
+                pendingImageUri = it
+                currentDialogImageView?.setImageURI(it)
+            }
         }
 
     // Bluetooth discovery receiver
@@ -66,21 +66,25 @@ class MainActivity : AppCompatActivity() {
             if (intent?.action == BluetoothDevice.ACTION_FOUND) {
                 val device: BluetoothDevice? =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                        intent.getParcelableExtra(
+                            BluetoothDevice.EXTRA_DEVICE,
+                            BluetoothDevice::class.java
+                        )
                     } else {
                         @Suppress("DEPRECATION")
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                     }
-                device?.let {
-                    val hasBtConnect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        ContextCompat.checkSelfPermission(
-                            this@MainActivity,
-                            Manifest.permission.BLUETOOTH_CONNECT
-                        ) == PackageManager.PERMISSION_GRANTED
-                    } else true
 
-                    val majorClass =
-                        if (hasBtConnect) it.bluetoothClass?.majorDeviceClass else null
+                device?.let {
+                    val hasBtConnect =
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            ContextCompat.checkSelfPermission(
+                                this@MainActivity,
+                                Manifest.permission.BLUETOOTH_CONNECT
+                            ) == PackageManager.PERMISSION_GRANTED
+                        } else true
+
+                    val majorClass = if (hasBtConnect) it.bluetoothClass?.majorDeviceClass else null
                     val typeName = when (majorClass) {
                         BluetoothClass.Device.Major.COMPUTER -> "Mini-PC"
                         BluetoothClass.Device.Major.PERIPHERAL -> "ESP32/STM32"
@@ -108,6 +112,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Bind UI
         recyclerView = findViewById(R.id.recyclerView)
         recyclerViewDevices = findViewById(R.id.recyclerViewDevices)
         progressBar = findViewById(R.id.progressBar)
@@ -144,6 +149,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Seleccionado: ${selected.ip}", Toast.LENGTH_SHORT).show()
         }
 
+        // Listeners
         btnScanDevices.setOnClickListener { scanDevices() }
         btnAddProduct.setOnClickListener { openAddEditDialog(null) }
         btnSendAll.setOnClickListener { sendToAllDevices() }
@@ -217,6 +223,7 @@ class MainActivity : AppCompatActivity() {
         progressBar.progress = 0
         progressBar.max = 100
         tvProgress.text = "Inicializando escaneo..."
+
         startBluetoothScan()
 
         CoroutineScope(Dispatchers.Main).launch {
@@ -259,6 +266,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Bluetooth no disponible", Toast.LENGTH_SHORT).show()
             return
         }
+
         val ok = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             ContextCompat.checkSelfPermission(
                 this,
@@ -270,17 +278,22 @@ class MainActivity : AppCompatActivity() {
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         }
+
         if (!ok) {
-            checkAndRequestPermissions(); return
+            checkAndRequestPermissions()
+            return
         }
+
         if (adapter.isDiscovering) try {
             adapter.cancelDiscovery()
         } catch (_: Exception) {
         }
+
         try {
             registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
         } catch (_: Exception) {
         }
+
         try {
             adapter.startDiscovery()
         } catch (_: Exception) {
@@ -306,7 +319,10 @@ class MainActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.Main).launch {
             val result = withContext(Dispatchers.IO) {
-                deviceManager.sendCommandToDevice(dispositivo, producto.comando.ifEmpty { producto.nombre })
+                deviceManager.sendCommandToDevice(
+                    dispositivo,
+                    producto.comando.ifEmpty { producto.nombre }
+                )
             }
             Toast.makeText(this, "Respuesta: $result", Toast.LENGTH_SHORT).show()
         }
@@ -314,7 +330,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun sendToAllDevices() {
         if (listaProductos.isEmpty() || dispositivosDetectados.isEmpty()) {
-            Toast.makeText(this, "No hay productos o dispositivos", Toast.LENGTH_SHORT).show(); return
+            Toast.makeText(this, "No hay productos o dispositivos", Toast.LENGTH_SHORT).show()
+            return
         }
         CoroutineScope(Dispatchers.Main).launch {
             tvProgress.text = "Enviando a todos..."
@@ -324,7 +341,8 @@ class MainActivity : AppCompatActivity() {
                     for (prod in listaProductos) {
                         val resp = deviceManager.sendCommandToDevice(
                             dev,
-                            prod.comando.ifEmpty { prod.nombre })
+                            prod.comando.ifEmpty { prod.nombre }
+                        )
                         res.add(dev.ip ?: "?" to resp)
                     }
                 }
@@ -336,3 +354,4 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+
