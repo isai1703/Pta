@@ -1,5 +1,4 @@
-// build.gradle.kts (nivel módulo :app)
-
+// build.gradle.kts (módulo :app)
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -16,69 +15,54 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
 
     buildTypes {
-        release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+        release { isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
-        debug {
-            isDebuggable = true
-        }
+        debug { isDebuggable = true }
     }
 
-    buildFeatures {
-        viewBinding = true
-    }
+    buildFeatures { viewBinding = true }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions { jvmTarget = "17" }
 }
 
 dependencies {
-    // AndroidX base
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-
-    // RecyclerView
     implementation("androidx.recyclerview:recyclerview:1.3.2")
 
-    // Room (persistencia de productos)
+    // Room (si usarás Room luego)
     implementation("androidx.room:room-runtime:2.6.1")
     kapt("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
 
-    // Gson (manejo de JSON)
+    // Gson
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // Coroutines (escaneo WiFi y procesos en background)
+    // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
-    // Bluetooth y conexiones
-    implementation("androidx.activity:activity-ktx:1.9.0")
-
-    // Glide (para cargar imágenes desde galería)
+    // Glide para imágenes
     implementation("com.github.bumptech.glide:glide:4.16.0")
     kapt("com.github.bumptech.glide:compiler:4.16.0")
 
     // Lifecycle
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
+
+    // SSH (JSch)
+    implementation("com.jcraft:jsch:0.1.55")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

@@ -1,7 +1,6 @@
 package com.isai1703.pta.manager
 
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
 import android.util.Log
 import com.isai1703.pta.model.DeviceInfo
 import com.isai1703.pta.model.DeviceType
@@ -10,102 +9,73 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * DeviceManager centraliza la lógica de selección de cliente según el tipo de dispositivo.
- * Permite enviar comandos reales por HTTP, SSH, Bluetooth (RFCOMM) o TCP.
+ * DeviceManager: instancia de cliente por dispositivo, conecta y envía comandos.
+ * Uso:
+ *   val mgr = DeviceManager(context)
+ *   mgr.connectToDevice(device)
+ *   mgr.sendCommand("dispense?motor=1")
  */
-object DeviceManager {
+class DeviceManager {
+    private var client: DeviceClient? = null
+    private var currentDevice: DeviceInfo? = null
 
-    private const val TAG = "DeviceManager"
-
-    /**
-     * Crea el cliente adecuado según el tipo de dispositivo.
-     */
-    private fun createClient(device: DeviceInfo): DeviceClient? {
-        return when (device.type) {
-            DeviceType.ESP32 -> {
-                when {
-                    device.ip != null -> Esp32HttpClient(device.ip, device.port ?: 80)
-                    device.macAddress != null -> createBluetoothClient(device)
-                    else -> null
-                }
-            }
-
-            DeviceType.RASPBERRY_PI -> {
-                when {
-                    device.user != null && device.password != null && device.ip != null -> {
-                        RaspberryPiSshClient(
-                            host = device.ip,
-                            user = device.user,
-                            password = device.password,
-                            port = device.port ?: 22
-                        )
-                    }
-                    device.ip != null -> Esp32HttpClient(device.ip, device.port ?: 80) // fallback HTTP
-                    else -> null
-                }
-            }
-
-            DeviceType.GENERIC_HTTP -> {
-                device.ip?.let { Esp32HttpClient(it, device.port ?: 80) }
-            }
-
-            DeviceType.GENERIC_SSH -> {
-                if (device.user != null && device.password != null && device.ip != null) {
-                    RaspberryPiSshClient(
-                        host = device.ip,
-                        user = device.user,
-                        password = device.password,
-                        port = device.port ?: 22
-                    )
-                } else null
-            }
-
-            DeviceType.GENERIC_BLUETOOTH -> createBluetoothClient(device)
-
-            DeviceType.GENERIC_TCP -> {
-                if (device.ip != null && device.port != null) {
-                    TcpSocketClient(device.ip, device.port)
-                } else null
-            }
-
-            else -> null
+    suspend fun connectToDevice(device: DeviceInfo): Boolean = withContext(Dispatchers.IO) {
+        try {
+            disconnect()
+            currentDevice = device
+            client = createClientFor(device)
+            val ok = client?.connect() ?: false
+            ok
+        } catch (e: Exception) {
+            Log.e("DeviceManager", "connectToDevice error: ${e.message}")
+            false
         }
     }
 
-    /**
-     * Envía un comando real al dispositivo, seleccionando automáticamente el cliente.
-     */
-    suspend fun sendCommand(device: DeviceInfo, command: String): String =
-        withContext(Dispatchers.IO) {
-            val client = createClient(device)
-            if (client != null) {
-                try {
-                    Log.d(TAG, "Enviando comando a ${device.getDisplayName()} -> $command")
-                    return@withContext client.sendCommand(command)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error enviando comando: ${e.message}")
-                    return@withContext "Error enviando comando: ${e.message}"
-                }
-            } else {
-                return@withContext "Cliente no disponible para ${device.getDisplayName()}"
+    private fun createClientFor(device: DeviceInfo): DeviceClient? {
+        return when (device.type) {
+            DeviceType.ESP32, DeviceType.GENERIC_HTTP -> {
+                if (!device.ip.isNullOrBlank()) Esp32HttpClient(device.ip!!, device.port ?: 80) else null
+            }
+            DeviceType.RASPBERRY_PI, DeviceType.GENERIC_SSH -> {
+                if (!device.ip.isNullOrBlank() && !device.user.isNullOrBlank() && !device.password.isNullOrBlank()) {
+                    RaspberryPiSshClient(host = device.ip!!, user = device.user!!, password = device.password!!, port = device.port ?: 22)
+                } else if (!device.ip.isNullOrBlank()) {
+                    Esp32HttpClient(device.ip!!, device.port ?: 80) // fallback HTTP
+                } else null
+            }
+            DeviceType.GENERIC_TCP -> {
+                if (!device.ip.isNullOrBlank() && device.port != null) TcpSocketClient(device.ip!!, device.port) else null
+            }
+            DeviceType.BLUETOOTH -> {
+                val mac = device.macAddress ?: return null
+                val adapter = BluetoothAdapter.getDefaultAdapter() ?: return null
+                val btDevice = adapter.getRemoteDevice(mac)
+                BluetoothClient(btDevice)
+            }
+            else -> {
+                if (!device.ip.isNullOrBlank()) Esp32HttpClient(device.ip!!, device.port ?: 80) else null
             }
         }
+    }
 
-    /**
-     * Crea un cliente Bluetooth usando RFCOMM si el dispositivo tiene MAC registrada.
-     */
-    private fun createBluetoothClient(device: DeviceInfo): DeviceClient? {
-        return try {
-            val adapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
-            if (adapter == null || device.macAddress == null) {
-                Log.e(TAG, "Bluetooth no disponible o MAC no especificada")
-                return null
-            }
-            val btDevice: BluetoothDevice = adapter.getRemoteDevice(device.macAddress)
-            BluetoothClient(btDevice)
+    suspend fun sendCommand(command: String): String = withContext(Dispatchers.IO) {
+        try {
+            val c = client ?: return@withContext "Error: not connected"
+            c.sendCommand(command)
         } catch (e: Exception) {
-            Log.e(TAG, "Error creando cliente Bluetooth: ${e.message}")
-            null
+            "Error: ${e.message}"
         }
+    }
+
+    suspend fun sendCommandToDevice(device: DeviceInfo, command: String): String {
+        val ok = connectToDevice(device)
+        return if (ok) sendCommand(command) else "Error: connect failed"
+    }
+
+    fun disconnect() {
+        try { client?.disconnect() } catch (_: Exception) {}
+        client = null
+        currentDevice = null
     }
 }

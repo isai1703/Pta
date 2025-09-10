@@ -1,88 +1,65 @@
 package com.isai1703.pta.utils
 
-import com.isai1703.pta.model.DeviceInfo
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.InetAddress
-import java.net.NetworkInterface
-import java.net.URL
-import java.util.*
+import com.isai1703.pta.model.DeviceType
+import kotlinx.coroutines.*
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.util.concurrent.Semaphore
+import kotlin.math.min
 
 /**
- * Escáner de red para detectar dispositivos (ESP32, Raspberry Pi, STM32, Mini-PC, etc).
- * Detecta la subred local y prueba conexiones HTTP.
+ * Escanea múltiples subredes (ej: "192.168.0", "192.168.1") y detecta hosts con puertos abiertos (80,22...).
+ * Llamada:
+ *   val found = NetworkScanner.scanMultipleSubnetsWithProgress(listOf("192.168.0","192.168.1"), chunkSize=32) { scanned,total,netDevice -> ... }
  */
 object NetworkScanner {
+    private val defaultPorts = listOf(80, 22, 8080, 23)
 
-    /**
-     * Escanea toda la subred en bloques (chunkSize).
-     * Reporta progreso y devuelve el primer dispositivo encontrado.
-     */
-    suspend fun scanForMachineWithProgress(
+    suspend fun scanMultipleSubnetsWithProgress(
+        subnetBases: List<String>,
         chunkSize: Int = 32,
-        onProgress: (scanned: Int, total: Int, found: DeviceInfo?) -> Unit
-    ): DeviceInfo? = withContext(Dispatchers.IO) {
-        val localIp = getLocalIp() ?: return@withContext null
-        val subnet = localIp.substringBeforeLast(".")
-        val total = 254
-        var scanned = 0
-        var foundDevice: DeviceInfo? = null
-
-        for (i in 1..254 step chunkSize) {
-            val end = (i + chunkSize - 1).coerceAtMost(254)
-            val range = (i..end)
-
-            val jobs = range.map { host ->
-                val target = "$subnet.$host"
-                kotlin.runCatching {
-                    val ip = InetAddress.getByName(target)
-                    if (ip.isReachable(300)) {
-                        // Intentar consulta HTTP
-                        val url = URL("http://$target/")
-                        val conn = url.openConnection() as HttpURLConnection
-                        conn.connectTimeout = 500
-                        conn.readTimeout = 500
-                        conn.requestMethod = "GET"
-                        conn.connect()
-                        val response = conn.inputStream.bufferedReader().use(BufferedReader::readText)
-                        conn.disconnect()
-
-                        // Identificar dispositivo según la respuesta
-                        val type = when {
-                            response.contains("ESP32", true) -> "ESP32"
-                            response.contains("Raspberry", true) -> "Raspberry Pi"
-                            response.contains("STM32", true) -> "STM32"
-                            else -> "Dispositivo"
-                        }
-                        foundDevice = DeviceInfo(ip = target, type = type, name = type)
-                    }
-                }
-            }
-            scanned += jobs.size
-            onProgress(scanned, total, foundDevice)
-
-            if (foundDevice != null) return@withContext foundDevice
+        timeoutMs: Int = 300,
+        progressCb: (scanned: Int, total: Int, foundDevice: NetDevice?) -> Unit
+    ): NetDevice? = withContext(Dispatchers.IO) {
+        val ips = mutableListOf<String>()
+        for (base in subnetBases) {
+            for (i in 1..254) ips += "$base.$i"
         }
-        return@withContext foundDevice
-    }
-
-    /**
-     * Obtiene la IP local del dispositivo Android.
-     */
-    private fun getLocalIp(): String? {
-        try {
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            for (intf in Collections.list(interfaces)) {
-                for (addr in Collections.list(intf.inetAddresses)) {
-                    if (!addr.isLoopbackAddress && addr.hostAddress.indexOf(':') < 0) {
-                        return addr.hostAddress
+        val total = ips.size
+        var scanned = 0
+        val sem = Semaphore(chunkSize)
+        var found: NetDevice? = null
+        val jobs = ips.map { ip ->
+            async {
+                sem.acquire()
+                try {
+                    if (found != null) return@async
+                    for (port in defaultPorts) {
+                        try {
+                            val socket = Socket()
+                            socket.connect(InetSocketAddress(ip, port), timeoutMs)
+                            socket.close()
+                            // Device found on ip:port
+                            val type = when (port) {
+                                22 -> DeviceType.RASPBERRY_PI
+                                80, 8080 -> DeviceType.GENERIC_HTTP
+                                else -> DeviceType.GENERIC_TCP
+                            }
+                            val nd = NetDevice(ip = ip, port = port, name = ip, mac = null, type = type)
+                            found = nd
+                            break
+                        } catch (_: Exception) {
+                            // not open
+                        }
                     }
+                } finally {
+                    scanned++
+                    progressCb(scanned, total, found)
+                    sem.release()
                 }
             }
-        } catch (_: Exception) { }
-        return null
+        }
+        jobs.forEach { it.join() }
+        found
     }
 }

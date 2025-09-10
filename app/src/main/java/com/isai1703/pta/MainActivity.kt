@@ -2,12 +2,10 @@ package com.isai1703.pta
 
 import android.Manifest
 import android.bluetooth.*
-import android.content.Intent
-import android.content.IntentFilter
+import android.content.*
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
-import android.os.Bundle
+import android.os.*
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -32,6 +30,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnScanDevices: Button
     private lateinit var btnAddProduct: Button
     private lateinit var btnSendAll: Button
+    private lateinit var btnConnect: Button
 
     // Data
     private val listaProductos = mutableListOf<Producto>()
@@ -44,7 +43,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Device Manager
-    private val deviceManager = DeviceManager()
+    private lateinit var deviceManager: DeviceManager
 
     // Permissions
     private val REQUEST_CODE_PERMISSIONS = 1001
@@ -61,8 +60,8 @@ class MainActivity : AppCompatActivity() {
         }
 
     // Bluetooth discovery receiver
-    private val bluetoothReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+    private val bluetoothReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == BluetoothDevice.ACTION_FOUND) {
                 val device: BluetoothDevice? =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -91,11 +90,10 @@ class MainActivity : AppCompatActivity() {
                         BluetoothClass.Device.Major.PHONE -> "Raspberry"
                         else -> "Desconocido"
                     }
-
                     val dName = if (hasBtConnect) it.name else null
                     val info = DeviceInfo(
                         ip = it.address,
-                        name = dName ?: "Desconocido",
+                        name = dName ?: typeName,
                         type = DeviceType.BLUETOOTH
                     )
                     if (!dispositivosDetectados.any { d -> d.ip == info.ip }) {
@@ -112,6 +110,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        deviceManager = DeviceManager(this)
+
         // Bind UI
         recyclerView = findViewById(R.id.recyclerView)
         recyclerViewDevices = findViewById(R.id.recyclerViewDevices)
@@ -120,6 +120,7 @@ class MainActivity : AppCompatActivity() {
         btnScanDevices = findViewById(R.id.btnScanDevices)
         btnAddProduct = findViewById(R.id.btnAddProduct)
         btnSendAll = findViewById(R.id.btnSendAll)
+        btnConnect = findViewById(R.id.btnConnect)
 
         checkAndRequestPermissions()
 
@@ -127,10 +128,9 @@ class MainActivity : AppCompatActivity() {
         listaProductos.clear()
         listaProductos.addAll(ProductStorage.loadProducts(this))
         if (listaProductos.isEmpty()) {
-            listaProductos += listOf(
-                Producto(1, "Producto 1", "$10", null, "dispense?product=1"),
-                Producto(2, "Producto 2", "$20", null, "dispense?product=2")
-            )
+            for (i in 1..54) {
+                listaProductos += Producto(i, "Producto $i", "$${i * 5}", null, "dispense?motor=$i")
+            }
             ProductStorage.saveProducts(this, listaProductos)
         }
 
@@ -153,6 +153,7 @@ class MainActivity : AppCompatActivity() {
         btnScanDevices.setOnClickListener { scanDevices() }
         btnAddProduct.setOnClickListener { openAddEditDialog(null) }
         btnSendAll.setOnClickListener { sendToAllDevices() }
+        btnConnect.setOnClickListener { connectToSelected() }
     }
 
     override fun onDestroy() {
@@ -167,28 +168,23 @@ class MainActivity : AppCompatActivity() {
     // -------- PERMISOS
     private fun checkAndRequestPermissions() {
         val permissionsToRequest = mutableListOf<String>()
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.BLUETOOTH_CONNECT
                 ) != PackageManager.PERMISSION_GRANTED
-            )
-                permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
-
+            ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
             if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.BLUETOOTH_SCAN
                 ) != PackageManager.PERMISSION_GRANTED
-            )
-                permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
+            ) permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
         } else {
             if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.ACCESS_FINE_LOCATION
                 ) != PackageManager.PERMISSION_GRANTED
-            )
-                permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            ) permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -196,15 +192,13 @@ class MainActivity : AppCompatActivity() {
                     this,
                     Manifest.permission.READ_MEDIA_IMAGES
                 ) != PackageManager.PERMISSION_GRANTED
-            )
-                permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
+            ) permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES)
         } else {
             if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.READ_EXTERNAL_STORAGE
                 ) != PackageManager.PERMISSION_GRANTED
-            )
-                permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            ) permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
         if (permissionsToRequest.isNotEmpty()) {
@@ -230,7 +224,10 @@ class MainActivity : AppCompatActivity() {
             tvProgress.text = "Escaneando subredes..."
             progressBar.progress = 0
             val found = withContext(Dispatchers.IO) {
-                NetworkScanner.scanForMachineWithProgress(chunkSize = 32) { scanned, total, foundDevice ->
+                NetworkScanner.scanMultipleSubnetsWithProgress(
+                    listOf("192.168.0", "192.168.1", "192.168.2"),
+                    chunkSize = 32
+                ) { scanned, total, foundDevice ->
                     runOnUiThread {
                         val percent = if (total > 0) (scanned * 100 / total) else 0
                         progressBar.progress = percent
@@ -266,7 +263,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Bluetooth no disponible", Toast.LENGTH_SHORT).show()
             return
         }
-
         val ok = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             ContextCompat.checkSelfPermission(
                 this,
@@ -278,22 +274,18 @@ class MainActivity : AppCompatActivity() {
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) == PackageManager.PERMISSION_GRANTED
         }
-
         if (!ok) {
             checkAndRequestPermissions()
             return
         }
-
         if (adapter.isDiscovering) try {
             adapter.cancelDiscovery()
         } catch (_: Exception) {
         }
-
         try {
             registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
         } catch (_: Exception) {
         }
-
         try {
             adapter.startDiscovery()
         } catch (_: Exception) {
@@ -310,19 +302,32 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // -------- CONEXIÓN
+    private fun connectToSelected() {
+        val dispositivo = dispositivoSeleccionado ?: run {
+            Toast.makeText(this, "Selecciona un dispositivo primero", Toast.LENGTH_SHORT).show()
+            return
+        }
+        CoroutineScope(Dispatchers.Main).launch {
+            val ok = withContext(Dispatchers.IO) { deviceManager.connectToDevice(dispositivo) }
+            Toast.makeText(
+                this@MainActivity,
+                if (ok) "Conectado a ${dispositivo.name}" else "Error de conexión",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     // -------- COMANDOS
     private fun sendCommandFromProducto(producto: Producto) {
         val dispositivo = dispositivoSeleccionado ?: run {
             Toast.makeText(this, "Selecciona un dispositivo primero", Toast.LENGTH_SHORT).show()
             return
         }
-
         CoroutineScope(Dispatchers.Main).launch {
             val result = withContext(Dispatchers.IO) {
-                deviceManager.sendCommandToDevice(
-                    dispositivo,
-                    producto.comando.ifEmpty { producto.nombre }
-                )
+                deviceManager.connectToDevice(dispositivo)
+                deviceManager.sendCommand(producto.comando.ifEmpty { producto.nombre })
             }
             Toast.makeText(this, "Respuesta: $result", Toast.LENGTH_SHORT).show()
         }
@@ -338,11 +343,10 @@ class MainActivity : AppCompatActivity() {
             val results = withContext(Dispatchers.IO) {
                 val res = mutableListOf<Pair<String, String>>()
                 for (dev in dispositivosDetectados) {
+                    deviceManager.connectToDevice(dev)
                     for (prod in listaProductos) {
-                        val resp = deviceManager.sendCommandToDevice(
-                            dev,
-                            prod.comando.ifEmpty { prod.nombre }
-                        )
+                        val resp =
+                            deviceManager.sendCommand(prod.comando.ifEmpty { prod.nombre })
                         res.add(dev.ip ?: "?" to resp)
                     }
                 }
@@ -354,4 +358,3 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-

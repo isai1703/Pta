@@ -1,6 +1,5 @@
 package com.isai1703.pta
 
-import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,42 +7,39 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 
 class ProductoAdapter(
-    private val productos: List<Producto>,
+    private val items: List<Producto>,
     private val onSendCommandClick: (Producto) -> Unit,
     private val onEditClick: (Producto) -> Unit
-) : RecyclerView.Adapter<ProductoAdapter.ProductoViewHolder>() {
+) : RecyclerView.Adapter<ProductoAdapter.ViewHolder>() {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProductoViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_producto, parent, false)
-        return ProductoViewHolder(view)
+    inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val tvNombre: TextView = view.findViewById(R.id.tvNombreProducto)
+        val tvPrecio: TextView = view.findViewById(R.id.tvPrecioProducto)
+        val ivProducto: ImageView = view.findViewById(R.id.ivProducto)
+        val btnSend: Button = view.findViewById(R.id.btnSendCommand)
+        val btnEdit: Button = view.findViewById(R.id.btnEditProduct)
     }
 
-    override fun getItemCount(): Int = productos.size
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_producto, parent, false)
+        return ViewHolder(v)
+    }
 
-    override fun onBindViewHolder(holder: ProductoViewHolder, position: Int) {
-        val producto = productos[position]
-        holder.tvNombre.text = producto.nombre
-        holder.tvPrecio.text = producto.precio
-
-        if (!producto.imagenPath.isNullOrEmpty()) {
-            try {
-                holder.ivProducto.setImageURI(Uri.parse(producto.imagenPath))
-            } catch (_: Exception) { holder.ivProducto.setImageResource(R.drawable.icon_prueba) }
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val p = items[position]
+        holder.tvNombre.text = p.nombre
+        holder.tvPrecio.text = p.precio
+        if (!p.imagenPath.isNullOrBlank()) {
+            Glide.with(holder.itemView).load(p.imagenPath).into(holder.ivProducto)
         } else {
-            holder.ivProducto.setImageResource(R.drawable.icon_prueba)
+            holder.ivProducto.setImageResource(android.R.drawable.ic_menu_report_image)
         }
-
-        holder.btnEnviarComando.setOnClickListener { onSendCommandClick(producto) }
-        holder.btnEditar.setOnClickListener { onEditClick(producto) }
+        holder.btnSend.setOnClickListener { onSendCommandClick(p) }
+        holder.btnEdit.setOnClickListener { onEditClick(p) }
     }
 
-    class ProductoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvNombre: TextView = itemView.findViewById(R.id.tvNombre)
-        val tvPrecio: TextView = itemView.findViewById(R.id.tvPrecio)
-        val ivProducto: ImageView = itemView.findViewById(R.id.ivProducto)
-        val btnEnviarComando: Button = itemView.findViewById(R.id.btnEnviarComando)
-        val btnEditar: Button = itemView.findViewById(R.id.btnEditar)
-    }
+    override fun getItemCount(): Int = items.size
 }
