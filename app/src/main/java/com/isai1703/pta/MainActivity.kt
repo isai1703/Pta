@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.*
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -110,7 +111,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        deviceManager = DeviceManager(this)
+        deviceManager = DeviceManager()
 
         // Bind UI
         recyclerView = findViewById(R.id.recyclerView)
@@ -129,7 +130,13 @@ class MainActivity : AppCompatActivity() {
         listaProductos.addAll(ProductStorage.loadProducts(this))
         if (listaProductos.isEmpty()) {
             for (i in 1..54) {
-                listaProductos += Producto(i, "Producto $i", "$${i * 5}", null, "dispense?motor=$i")
+                listaProductos += Producto(
+                    i,
+                    "Producto $i",
+                    "$${i * 5}",
+                    null,
+                    "dispense?motor=$i"
+                )
             }
             ProductStorage.saveProducts(this, listaProductos)
         }
@@ -186,7 +193,6 @@ class MainActivity : AppCompatActivity() {
                 ) != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     this,
@@ -200,7 +206,6 @@ class MainActivity : AppCompatActivity() {
                 ) != PackageManager.PERMISSION_GRANTED
             ) permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
-
         if (permissionsToRequest.isNotEmpty()) {
             ActivityCompat.requestPermissions(
                 this,
@@ -345,8 +350,7 @@ class MainActivity : AppCompatActivity() {
                 for (dev in dispositivosDetectados) {
                     deviceManager.connectToDevice(dev)
                     for (prod in listaProductos) {
-                        val resp =
-                            deviceManager.sendCommand(prod.comando.ifEmpty { prod.nombre })
+                        val resp = deviceManager.sendCommand(prod.comando.ifEmpty { prod.nombre })
                         res.add(dev.ip ?: "?" to resp)
                     }
                 }
@@ -356,5 +360,56 @@ class MainActivity : AppCompatActivity() {
             tvProgress.text = "Envíos completados: $ok success"
             Toast.makeText(this@MainActivity, "Envíos finalizados", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    // -------- DIALOGO AGREGAR/EDITAR PRODUCTO
+    private fun openAddEditDialog(producto: Producto?) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_add_edit_product, null)
+        val etNombre = dialogView.findViewById<EditText>(R.id.etNombre)
+        val etPrecio = dialogView.findViewById<EditText>(R.id.etPrecio)
+        val etComando = dialogView.findViewById<EditText>(R.id.etComando)
+        val ivImagen = dialogView.findViewById<ImageView>(R.id.ivImagen)
+
+        producto?.let {
+            etNombre.setText(it.nombre)
+            etPrecio.setText(it.precio)
+            etComando.setText(it.comando)
+            it.imagenUri?.let { uri -> ivImagen.setImageURI(Uri.parse(uri)) }
+        }
+
+        ivImagen.setOnClickListener {
+            currentDialogImageView = ivImagen
+            pickImageLauncher.launch("image/*")
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(if (producto == null) "Agregar producto" else "Editar producto")
+            .setView(dialogView)
+            .setPositiveButton("Guardar") { _, _ ->
+                val nombre = etNombre.text.toString()
+                val precio = etPrecio.text.toString()
+                val comando = etComando.text.toString()
+                val uri = pendingImageUri?.toString()
+
+                if (producto == null) {
+                    val nuevo = Producto(
+                        id = listaProductos.size + 1,
+                        nombre = nombre,
+                        precio = precio,
+                        imagenUri = uri,
+                        comando = comando
+                    )
+                    listaProductos.add(nuevo)
+                } else {
+                    producto.nombre = nombre
+                    producto.precio = precio
+                    producto.comando = comando
+                    producto.imagenUri = uri
+                }
+                ProductStorage.saveProducts(this, listaProductos)
+                recyclerView.adapter?.notifyDataSetChanged()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 }
