@@ -334,7 +334,7 @@ class MainActivity : AppCompatActivity() {
                 deviceManager.connectToDevice(dispositivo)
                 deviceManager.sendCommand(producto.comando.ifEmpty { producto.nombre })
             }
-            Toast.makeText(this, "Respuesta: $result", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@MainActivity, "Respuesta: $result", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -351,7 +351,7 @@ class MainActivity : AppCompatActivity() {
                     deviceManager.connectToDevice(dev)
                     for (prod in listaProductos) {
                         val resp = deviceManager.sendCommand(prod.comando.ifEmpty { prod.nombre })
-                        res.add(dev.ip ?: "?" to resp)
+                        res.add((dev.ip ?: "?") to resp)
                     }
                 }
                 res
