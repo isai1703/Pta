@@ -1,114 +1,154 @@
 package com.isai1703.pta.manager
 
 import android.bluetooth.BluetoothAdapter
-import android.util.Log
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothSocket
 import com.isai1703.pta.model.DeviceInfo
 import com.isai1703.pta.model.DeviceType
-import com.isai1703.pta.network.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.OutputStream
+import java.net.HttpURLConnection
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.net.URL
+import java.util.*
 
 /**
- * DeviceManager: instancia de cliente por dispositivo, conecta y envía comandos.
- * Uso:
- *   val mgr = DeviceManager()
- *   mgr.connectToDevice(device)
- *   mgr.sendCommand("dispense?motor=1")
+ * DeviceManager:
+ * Maneja la conexión y comunicación con dispositivos:
+ *  - ESP32 (WiFi y Bluetooth)
+ *  - Raspberry Pi
+ *  - Otros compatibles
  */
 class DeviceManager {
 
-    private var client: DeviceClient? = null
-    private var currentDevice: DeviceInfo? = null
+    private var bluetoothSocket: BluetoothSocket? = null
+    private var outputStream: OutputStream? = null
+    private var wifiSocket: Socket? = null
 
     /**
-     * Conectar a un dispositivo según su tipo.
+     * Conexión genérica al dispositivo (WiFi o Bluetooth)
      */
-    suspend fun connectToDevice(device: DeviceInfo): Boolean = withContext(Dispatchers.IO) {
-        try {
-            disconnect()
-            currentDevice = device
-            client = createClientFor(device)
-            val ok = client?.connect() ?: false
-            ok
+    fun connectToDevice(device: DeviceInfo): Boolean {
+        return when (device.type) {
+            DeviceType.WIFI -> connectWifi(device.ip)
+            DeviceType.BLUETOOTH -> connectBluetooth(device.ip)
+            else -> false
+        }
+    }
+
+    /**
+     * Enviar comando genérico
+     */
+    fun sendCommand(command: String): String {
+        return try {
+            // Prioridad: WiFi primero
+            wifiSocket?.let {
+                return sendCommandWifi(it, command)
+            }
+            // Bluetooth si está disponible
+            bluetoothSocket?.let {
+                return sendCommandBluetooth(it, command)
+            }
+            "Error: no hay conexión activa"
         } catch (e: Exception) {
-            Log.e("DeviceManager", "connectToDevice error: ${e.message}")
+            "Error al enviar: ${e.message}"
+        }
+    }
+
+    // ----------- WiFi -----------
+    private fun connectWifi(ip: String?): Boolean {
+        return try {
+            if (ip.isNullOrEmpty()) return false
+            disconnect() // cierra conexiones previas
+            val url = URL("http://$ip/") // probamos conexión HTTP
+            val conn = url.openConnection() as HttpURLConnection
+            conn.connectTimeout = 2000
+            conn.readTimeout = 2000
+            conn.requestMethod = "GET"
+            conn.connect()
+            val code = conn.responseCode
+            conn.disconnect()
+            if (code in 200..299) {
+                wifiSocket = Socket()
+                wifiSocket?.connect(InetSocketAddress(ip, 80), 2000)
+                true
+            } else false
+        } catch (_: Exception) {
             false
         }
     }
 
-    /**
-     * Crear el cliente correcto según DeviceType.
-     */
-    private fun createClientFor(device: DeviceInfo): DeviceClient? {
-        return when (device.type) {
-            DeviceType.ESP32,
-            DeviceType.GENERIC_HTTP -> {
-                if (!device.ip.isNullOrBlank()) Esp32HttpClient(device.ip!!, device.port ?: 80) else null
-            }
+    private fun sendCommandWifi(socket: Socket, command: String): String {
+        return try {
+            val out = socket.getOutputStream()
+            val request = "GET /$command HTTP/1.1\r\nHost: ${socket.inetAddress.hostAddress}\r\n\r\n"
+            out.write(request.toByteArray())
+            out.flush()
 
-            DeviceType.RASPBERRY_PI,
-            DeviceType.GENERIC_SSH -> {
-                if (!device.ip.isNullOrBlank() && !device.user.isNullOrBlank() && !device.password.isNullOrBlank()) {
-                    RaspberryPiSshClient(
-                        host = device.ip!!,
-                        user = device.user!!,
-                        password = device.password!!,
-                        port = device.port ?: 22
-                    )
-                } else if (!device.ip.isNullOrBlank()) {
-                    // fallback HTTP si no hay credenciales
-                    Esp32HttpClient(device.ip!!, device.port ?: 80)
-                } else null
+            val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+            val response = StringBuilder()
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                response.append(line).append("\n")
             }
-
-            DeviceType.GENERIC_TCP -> {
-                if (!device.ip.isNullOrBlank() && device.port != null) {
-                    TcpSocketClient(device.ip!!, device.port)
-                } else null
-            }
-
-            DeviceType.BLUETOOTH -> {
-                val mac = device.macAddress ?: return null
-                val adapter = BluetoothAdapter.getDefaultAdapter() ?: return null
-                val btDevice = adapter.getRemoteDevice(mac)
-                BluetoothClient(btDevice)
-            }
-
-            else -> {
-                if (!device.ip.isNullOrBlank()) Esp32HttpClient(device.ip!!, device.port ?: 80) else null
-            }
-        }
-    }
-
-    /**
-     * Enviar un comando al cliente ya conectado.
-     */
-    suspend fun sendCommand(command: String): String = withContext(Dispatchers.IO) {
-        try {
-            val c = client ?: return@withContext "Error: not connected"
-            c.sendCommand(command)
+            response.toString()
         } catch (e: Exception) {
-            "Error: ${e.message}"
+            "Error WiFi: ${e.message}"
         }
     }
 
-    /**
-     * Conectar a un dispositivo, enviar un comando y desconectar si falla.
-     */
-    suspend fun sendCommandToDevice(device: DeviceInfo, command: String): String {
-        val ok = connectToDevice(device)
-        return if (ok) sendCommand(command) else "Error: connect failed"
+    // ----------- Bluetooth -----------
+    private fun connectBluetooth(macAddress: String?): Boolean {
+        return try {
+            if (macAddress.isNullOrEmpty()) return false
+            disconnect() // cierra conexiones previas
+            val adapter = BluetoothAdapter.getDefaultAdapter() ?: return false
+            val device: BluetoothDevice = adapter.getRemoteDevice(macAddress)
+            val uuid: UUID = device.uuids?.firstOrNull()?.uuid
+                ?: UUID.fromString("00001101-0000-1000-8000-00805f9b34fb") // SPP clásico
+            bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
+            adapter.cancelDiscovery()
+            bluetoothSocket?.connect()
+            outputStream = bluetoothSocket?.outputStream
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
-    /**
-     * Desconectar cliente actual.
-     */
+    private fun sendCommandBluetooth(socket: BluetoothSocket, command: String): String {
+        return try {
+            val out = socket.outputStream
+            val input = socket.inputStream
+            out.write((command + "\n").toByteArray())
+            out.flush()
+
+            val buffer = ByteArray(1024)
+            val bytes = input.read(buffer)
+            if (bytes > 0) {
+                String(buffer, 0, bytes)
+            } else {
+                "Sin respuesta del dispositivo"
+            }
+        } catch (e: Exception) {
+            "Error BT: ${e.message}"
+        }
+    }
+
+    // ----------- Desconexión -----------
     fun disconnect() {
         try {
-            client?.disconnect()
-        } catch (_: Exception) {
-        }
-        client = null
-        currentDevice = null
+            wifiSocket?.close()
+        } catch (_: Exception) { }
+        wifiSocket = null
+
+        try {
+            bluetoothSocket?.close()
+        } catch (_: Exception) { }
+        bluetoothSocket = null
+
+        outputStream = null
     }
 }

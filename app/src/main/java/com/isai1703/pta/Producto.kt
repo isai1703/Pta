@@ -4,6 +4,6 @@ data class Producto(
     var id: Int,
     var nombre: String,
     var precio: String,
-    var imagenPath: String? = null,
+    var imagenUri: String? = null,  // Cambiado de imagenPath
     var comando: String = ""
 )
