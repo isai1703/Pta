@@ -32,8 +32,8 @@ class ProductoAdapter(
         val p = items[position]
         holder.tvNombre.text = p.nombre
         holder.tvPrecio.text = p.precio
-        if (!p.imagenPath.isNullOrBlank()) {
-            Glide.with(holder.itemView).load(p.imagenPath).into(holder.ivProducto)
+        if (!p.imagenUri.isNullOrBlank()) {
+            Glide.with(holder.itemView).load(p.imagenUri).into(holder.ivProducto)
         } else {
             holder.ivProducto.setImageResource(android.R.drawable.ic_menu_report_image)
         }

@@ -38,7 +38,8 @@ class DeviceAdapter(
 
     override fun onBindViewHolder(holder: DeviceViewHolder, position: Int) {
         val d = devices[position]
-        holder.tvName.text = d.getDisplayName()
+        holder.tvName.text = d.name
+        holder.tvName.text = d.name
         holder.tvIp.text = d.ip ?: "N/A"
         holder.tvType.text = d.type.name
         holder.itemView.isSelected = (position == selectedPosition)
