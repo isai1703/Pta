@@ -271,7 +271,6 @@ class MainActivity : AppCompatActivity() {
                 "192.168.50",    // La otra interfaz que tienes
                 "192.168.1", 
                 "192.168.2"
-)
             )
             
             val found = withContext(Dispatchers.IO) {
