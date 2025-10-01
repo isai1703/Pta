@@ -45,8 +45,7 @@ object NetworkScanner {
                         try {
                             // Intenta conexión TCP primero
                             val socket = Socket()
-                            socket.connect(InetSocketAddress(ip, port), timeoutMs)
-                            
+                            socket.connect(InetSocketAddress(ip, port), 1000)  // 1 segundo                            
                             // Si conecta, verifica si es la máquina expendedora
                             val isVendingMachine = checkIfVendingMachine(ip, port)
                             socket.close()

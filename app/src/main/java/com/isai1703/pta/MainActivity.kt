@@ -267,10 +267,11 @@ class MainActivity : AppCompatActivity() {
             
             // Escanea múltiples rangos de IP comunes
             val subnets = listOf(
-                "192.168.0",
+                "192.168.0",     // TU RED - primera prioridad
+                "192.168.50",    // La otra interfaz que tienes
                 "192.168.1", 
-                "192.168.2",
-                "192.168.100"  // Algunos routers usan este rango
+                "192.168.2"
+)
             )
             
             val found = withContext(Dispatchers.IO) {
