@@ -52,12 +52,14 @@ object NetworkScanner {
                             socket.close()
                             
                             if (isVendingMachine) {
+                                // Identifica el dispositivo por su IP
+                                val identification = com.isai1703.pta.utils.DeviceIdentifier.identifyDevice(ip)
                                 val nd = NetDevice(
                                     ip = ip,
                                     port = port,
-                                    name = "Nochebuena Vending Machine",
+                                    name = identification.name,
                                     mac = null,
-                                    type = DeviceType.GENERIC_HTTP
+                                    type = identification.type
                                 )
                                 found = nd
                                 break

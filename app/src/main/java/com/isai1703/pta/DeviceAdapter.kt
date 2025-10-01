@@ -38,10 +38,22 @@ class DeviceAdapter(
 
     override fun onBindViewHolder(holder: DeviceViewHolder, position: Int) {
         val d = devices[position]
-        holder.tvName.text = d.name
-        holder.tvName.text = d.name
+        
+        // Identifica el dispositivo por IP
+        val identification = if (d.ip != null) {
+            com.isai1703.pta.utils.DeviceIdentifier.identifyDevice(d.ip)
+        } else {
+            com.isai1703.pta.utils.DeviceIdentification(
+                name = d.name,
+                type = d.type,
+                description = "Sin IP"
+            )
+        }
+        
+        // Muestra nombre identificado + IP
+        holder.tvName.text = identification.name
         holder.tvIp.text = d.ip ?: "N/A"
-        holder.tvType.text = d.type.name
+        holder.tvType.text = identification.description
         holder.itemView.isSelected = (position == selectedPosition)
     }
 
