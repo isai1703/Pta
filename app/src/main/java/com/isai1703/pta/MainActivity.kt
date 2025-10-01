@@ -124,22 +124,8 @@ class MainActivity : AppCompatActivity() {
         btnConnect = findViewById(R.id.btnConnect)
 
         checkAndRequestPermissions()
-
-        // Load products
-        listaProductos.clear()
-        listaProductos.addAll(ProductStorage.loadProducts(this))
-        if (listaProductos.isEmpty()) {
-            for (i in 1..54) {
-                listaProductos += Producto(
-                    i,
-                    "Producto $i",
-                    "$${i * 5}",
-                    null,
-                    "dispense?motor=$i"
-                )
-            }
-            ProductStorage.saveProducts(this, listaProductos)
-        }
+        loadSavedConfig()
+        loadProducts()
 
         // Recycler Productos
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -153,7 +139,8 @@ class MainActivity : AppCompatActivity() {
         recyclerViewDevices.layoutManager = LinearLayoutManager(this)
         recyclerViewDevices.adapter = DeviceAdapter(dispositivosDetectados) { selected ->
             dispositivoSeleccionado = selected
-            Toast.makeText(this, "Seleccionado: ${selected.ip}", Toast.LENGTH_SHORT).show()
+            saveDetectedIp(selected.ip ?: "")
+            Toast.makeText(this, "Seleccionado: ${selected.name} (${selected.ip})", Toast.LENGTH_SHORT).show()
         }
 
         // Listeners
@@ -170,6 +157,55 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {
         }
         deviceManager.disconnect()
+    }
+
+    // -------- CONFIGURACIÓN
+    private fun loadSavedConfig() {
+        try {
+            val file = File(filesDir, "config.txt")
+            if (file.exists()) {
+                val lines = file.readLines()
+                if (lines.isNotEmpty()) {
+                    val savedIp = lines[0].trim()
+                    // Intenta conectar automáticamente a la IP guardada
+                    val savedDevice = DeviceInfo(
+                        ip = savedIp,
+                        name = "Máquina Nochebuena (guardada)",
+                        type = DeviceType.GENERIC_HTTP
+                    )
+                    dispositivosDetectados.add(savedDevice)
+                    dispositivoSeleccionado = savedDevice
+                    recyclerViewDevices.adapter?.notifyDataSetChanged()
+                    tvProgress.text = "IP guardada cargada: $savedIp"
+                }
+            }
+        } catch (e: Exception) {
+            tvProgress.text = "No hay configuración guardada"
+        }
+    }
+
+    private fun loadProducts() {
+        listaProductos.clear()
+        listaProductos.addAll(ProductStorage.loadProducts(this))
+        
+        // Si no hay productos, crea los 60 por defecto
+        if (listaProductos.isEmpty()) {
+            generateDefaultProducts()
+            ProductStorage.saveProducts(this, listaProductos)
+        }
+    }
+
+    private fun generateDefaultProducts() {
+        // Genera 60 productos con comandos para motores
+        for (i in 1..60) {
+            listaProductos += Producto(
+                id = i,
+                nombre = "Producto $i",
+                precio = "$${i * 10}",
+                imagenUri = null,
+                comando = "dispense?motor=$i"
+            )
+        }
     }
 
     // -------- PERMISOS
@@ -226,11 +262,20 @@ class MainActivity : AppCompatActivity() {
         startBluetoothScan()
 
         CoroutineScope(Dispatchers.Main).launch {
-            tvProgress.text = "Escaneando subredes..."
+            tvProgress.text = "Escaneando todas las redes disponibles..."
             progressBar.progress = 0
+            
+            // Escanea múltiples rangos de IP comunes
+            val subnets = listOf(
+                "192.168.0",
+                "192.168.1", 
+                "192.168.2",
+                "192.168.100"  // Algunos routers usan este rango
+            )
+            
             val found = withContext(Dispatchers.IO) {
                 NetworkScanner.scanMultipleSubnetsWithProgress(
-                    listOf("192.168.0", "192.168.1", "192.168.2"),
+                    subnets,
                     chunkSize = 32
                 ) { scanned, total, foundDevice ->
                     runOnUiThread {
@@ -239,18 +284,31 @@ class MainActivity : AppCompatActivity() {
                         tvProgress.text = "Escaneadas $scanned / $total IPs"
                         foundDevice?.let {
                             if (!dispositivosDetectados.any { d -> d.ip == it.ip }) {
-                                dispositivosDetectados.add(it.asDeviceInfo())
+                                val deviceInfo = it.asDeviceInfo()
+                                dispositivosDetectados.add(deviceInfo)
                                 recyclerViewDevices.adapter?.notifyDataSetChanged()
-                                dispositivoSeleccionado = dispositivosDetectados.firstOrNull()
+                                
+                                // Auto-selecciona la máquina expendedora encontrada
+                                if (it.name.contains("Nochebuena", ignoreCase = true) || 
+                                    it.name.contains("Vending", ignoreCase = true)) {
+                                    dispositivoSeleccionado = deviceInfo
+                                    saveDetectedIp(it.ip)
+                                }
                             }
                         }
                     }
                 }
             }
+            
             if (found != null) {
                 runOnUiThread {
-                    tvProgress.text = "Máquina encontrada: ${found.ip}"
+                    tvProgress.text = "Máquina encontrada: ${found.name} en ${found.ip}:${found.port}"
                     progressBar.progress = 100
+                    Toast.makeText(
+                        this@MainActivity, 
+                        "Máquina expendedora detectada automáticamente", 
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
                 saveDetectedIp(found.ip)
             } else {

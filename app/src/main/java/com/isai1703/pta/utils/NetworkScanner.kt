@@ -2,18 +2,23 @@ package com.isai1703.pta.utils
 
 import com.isai1703.pta.model.DeviceType
 import kotlinx.coroutines.*
+import java.net.HttpURLConnection
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.net.URL
 import java.util.concurrent.Semaphore
 import kotlin.math.min
 
-/**
- * Escanea múltiples subredes (ej: "192.168.0", "192.168.1") y detecta hosts con puertos abiertos (80,22...).
- * Llamada:
- *   val found = NetworkScanner.scanMultipleSubnetsWithProgress(listOf("192.168.0","192.168.1"), chunkSize=32) { scanned,total,netDevice -> ... }
- */
 object NetworkScanner {
-    private val defaultPorts = listOf(80, 22, 8080, 23)
+    // Puertos específicos para máquinas expendedoras
+    private val vendingMachinePorts = listOf(
+        80,    // HTTP estándar
+        8080,  // HTTP alternativo
+        8081,  // Posible puerto de control
+        5000,  // Flask/APIs comunes
+        3000,  // Node.js APIs
+        9000   // Otro puerto común
+    )
 
     suspend fun scanMultipleSubnetsWithProgress(
         subnetBases: List<String>,
@@ -29,27 +34,36 @@ object NetworkScanner {
         var scanned = 0
         val sem = Semaphore(chunkSize)
         var found: NetDevice? = null
+        
         val jobs = ips.map { ip ->
             async {
                 sem.acquire()
                 try {
                     if (found != null) return@async
-                    for (port in defaultPorts) {
+                    
+                    for (port in vendingMachinePorts) {
                         try {
+                            // Intenta conexión TCP primero
                             val socket = Socket()
                             socket.connect(InetSocketAddress(ip, port), timeoutMs)
+                            
+                            // Si conecta, verifica si es la máquina expendedora
+                            val isVendingMachine = checkIfVendingMachine(ip, port)
                             socket.close()
-                            // Device found on ip:port
-                            val type = when (port) {
-                                22 -> DeviceType.RASPBERRY_PI
-                                80, 8080 -> DeviceType.GENERIC_HTTP
-                                else -> DeviceType.GENERIC_TCP
+                            
+                            if (isVendingMachine) {
+                                val nd = NetDevice(
+                                    ip = ip,
+                                    port = port,
+                                    name = "Nochebuena Vending Machine",
+                                    mac = null,
+                                    type = DeviceType.GENERIC_HTTP
+                                )
+                                found = nd
+                                break
                             }
-                            val nd = NetDevice(ip = ip, port = port, name = ip, mac = null, type = type)
-                            found = nd
-                            break
                         } catch (_: Exception) {
-                            // not open
+                            // Puerto no abierto o timeout
                         }
                     }
                 } finally {
@@ -61,5 +75,67 @@ object NetworkScanner {
         }
         jobs.forEach { it.join() }
         found
+    }
+    
+    /**
+     * Verifica si el dispositivo es una máquina expendedora
+     * Busca endpoints típicos o respuestas características
+     */
+    private fun checkIfVendingMachine(ip: String, port: Int): Boolean {
+        return try {
+            // Endpoints comunes en máquinas expendedoras
+            val testEndpoints = listOf(
+                "/api/status",
+                "/status",
+                "/dispense",
+                "/motor",
+                "/vending",
+                "/"
+            )
+            
+            for (endpoint in testEndpoints) {
+                try {
+                    val url = URL("http://$ip:$port$endpoint")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.connectTimeout = 1000
+                    conn.readTimeout = 1000
+                    conn.requestMethod = "GET"
+                    conn.connect()
+                    
+                    val responseCode = conn.responseCode
+                    val response = if (responseCode in 200..299) {
+                        conn.inputStream.bufferedReader().use { it.readText() }
+                    } else ""
+                    
+                    conn.disconnect()
+                    
+                    // Busca palabras clave relacionadas con máquinas expendedoras
+                    val vendingKeywords = listOf(
+                        "vending",
+                        "dispense",
+                        "motor",
+                        "coil",
+                        "spiral",
+                        "product",
+                        "nochebuena",
+                        "android"
+                    )
+                    
+                    if (vendingKeywords.any { response.lowercase().contains(it) }) {
+                        return true
+                    }
+                    
+                    // Si responde en algún endpoint típico, es probable que sea la máquina
+                    if (responseCode in 200..299 && endpoint in listOf("/api/status", "/status", "/dispense")) {
+                        return true
+                    }
+                } catch (_: Exception) {
+                    continue
+                }
+            }
+            false
+        } catch (_: Exception) {
+            false
+        }
     }
 }
