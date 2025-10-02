@@ -148,11 +148,14 @@ class MainActivity : AppCompatActivity() {
         btnAddProduct.setOnClickListener { openAddEditDialog(null) }
         btnSendAll.setOnClickListener { sendToAllDevices() }
         btnConnect.setOnClickListener { connectToSelected() }
-    }
-
-        // Agregar IP manualmente
+        
+        // Agregar IP manualmente (opcional, solo si tienes el botón en el layout)
         findViewById<Button>(R.id.btnManualIP)?.setOnClickListener {
             showManualIPDialog()
+        }
+    }
+
+    private fun showManualIPDialog() {
         private fun showManualIPDialog() {
             val input = EditText(this)
             input.hint = "192.168.100.24"
