@@ -150,6 +150,35 @@ class MainActivity : AppCompatActivity() {
         btnConnect.setOnClickListener { connectToSelected() }
     }
 
+        // Agregar IP manualmente
+        findViewById<Button>(R.id.btnManualIP)?.setOnClickListener {
+            showManualIPDialog()
+        private fun showManualIPDialog() {
+            val input = EditText(this)
+            input.hint = "192.168.100.24"
+    
+            AlertDialog.Builder(this)
+                .setTitle("Agregar IP manualmente")
+                .setView(input)
+                .setPositiveButton("Agregar") { _, _ ->
+                    val ip = input.text.toString().trim()
+                    if (ip.isNotEmpty()) {
+                        val device = DeviceInfo(
+                            ip = ip,
+                            name = "Máquina Nochebuena (manual)",
+                            type = DeviceType.GENERIC_HTTP
+                        )
+                        dispositivosDetectados.add(device)
+                        dispositivoSeleccionado = device
+                        recyclerViewDevices.adapter?.notifyDataSetChanged()
+                        saveDetectedIp(ip)
+                        Toast.makeText(this, "IP agregada: $ip", Toast.LENGTH_LONG).show()
+                    }
+                }
+                .setNegativeButton("Cancelar", null)
+                .show() 
+         }
+}
     override fun onDestroy() {
         super.onDestroy()
         try {
@@ -265,11 +294,11 @@ class MainActivity : AppCompatActivity() {
             tvProgress.text = "Escaneando todas las redes disponibles..."
             progressBar.progress = 0
             
-            // Escanea múltiples rangos de IP comunes
             val subnets = listOf(
-                "192.168.0",     // TU RED - primera prioridad
-                "192.168.50",    // La otra interfaz que tienes
-                "192.168.1", 
+                "192.168.100",   // RED DE LA MÁQUINA
+                "192.168.0",
+                "192.168.50",
+                "192.168.1",
                 "192.168.2"
             )
             
