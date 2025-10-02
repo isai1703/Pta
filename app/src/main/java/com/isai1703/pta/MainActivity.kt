@@ -149,39 +149,13 @@ class MainActivity : AppCompatActivity() {
         btnSendAll.setOnClickListener { sendToAllDevices() }
         btnConnect.setOnClickListener { connectToSelected() }
         
-        // Agregar IP manualmente (opcional, solo si tienes el botón en el layout)
-        findViewById<Button>(R.id.btnManualIP)?.setOnClickListener {
+        // Long press en ESCANEAR para agregar IP manual
+        btnScanDevices.setOnLongClickListener {
             showManualIPDialog()
+            true
         }
     }
 
-    private fun showManualIPDialog() {
-        private fun showManualIPDialog() {
-            val input = EditText(this)
-            input.hint = "192.168.100.24"
-    
-            AlertDialog.Builder(this)
-                .setTitle("Agregar IP manualmente")
-                .setView(input)
-                .setPositiveButton("Agregar") { _, _ ->
-                    val ip = input.text.toString().trim()
-                    if (ip.isNotEmpty()) {
-                        val device = DeviceInfo(
-                            ip = ip,
-                            name = "Máquina Nochebuena (manual)",
-                            type = DeviceType.GENERIC_HTTP
-                        )
-                        dispositivosDetectados.add(device)
-                        dispositivoSeleccionado = device
-                        recyclerViewDevices.adapter?.notifyDataSetChanged()
-                        saveDetectedIp(ip)
-                        Toast.makeText(this, "IP agregada: $ip", Toast.LENGTH_LONG).show()
-                    }
-                }
-                .setNegativeButton("Cancelar", null)
-                .show() 
-         }
-}
     override fun onDestroy() {
         super.onDestroy()
         try {
@@ -199,20 +173,19 @@ class MainActivity : AppCompatActivity() {
                 val lines = file.readLines()
                 if (lines.isNotEmpty()) {
                     val savedIp = lines[0].trim()
-                    // Intenta conectar automáticamente a la IP guardada
                     val savedDevice = DeviceInfo(
                         ip = savedIp,
-                        name = "Máquina Nochebuena (guardada)",
+                        name = "Máquina guardada",
                         type = DeviceType.GENERIC_HTTP
                     )
                     dispositivosDetectados.add(savedDevice)
                     dispositivoSeleccionado = savedDevice
                     recyclerViewDevices.adapter?.notifyDataSetChanged()
-                    tvProgress.text = "IP guardada cargada: $savedIp"
+                    tvProgress.text = "IP guardada: $savedIp"
                 }
             }
         } catch (e: Exception) {
-            tvProgress.text = "No hay configuración guardada"
+            tvProgress.text = "Sin configuración previa"
         }
     }
 
@@ -220,7 +193,6 @@ class MainActivity : AppCompatActivity() {
         listaProductos.clear()
         listaProductos.addAll(ProductStorage.loadProducts(this))
         
-        // Si no hay productos, crea los 60 por defecto
         if (listaProductos.isEmpty()) {
             generateDefaultProducts()
             ProductStorage.saveProducts(this, listaProductos)
@@ -228,7 +200,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun generateDefaultProducts() {
-        // Genera 60 productos con comandos para motores
         for (i in 1..60) {
             listaProductos += Producto(
                 id = i,
@@ -294,11 +265,11 @@ class MainActivity : AppCompatActivity() {
         startBluetoothScan()
 
         CoroutineScope(Dispatchers.Main).launch {
-            tvProgress.text = "Escaneando todas las redes disponibles..."
+            tvProgress.text = "Escaneando todas las redes..."
             progressBar.progress = 0
             
             val subnets = listOf(
-                "192.168.100",   // RED DE LA MÁQUINA
+                "192.168.100",  // RED DE LA MÁQUINA
                 "192.168.0",
                 "192.168.50",
                 "192.168.1",
@@ -320,7 +291,6 @@ class MainActivity : AppCompatActivity() {
                                 dispositivosDetectados.add(deviceInfo)
                                 recyclerViewDevices.adapter?.notifyDataSetChanged()
                                 
-                                // Auto-selecciona la máquina expendedora encontrada
                                 if (it.name.contains("Nochebuena", ignoreCase = true) || 
                                     it.name.contains("Vending", ignoreCase = true)) {
                                     dispositivoSeleccionado = deviceInfo
@@ -334,11 +304,11 @@ class MainActivity : AppCompatActivity() {
             
             if (found != null) {
                 runOnUiThread {
-                    tvProgress.text = "Máquina encontrada: ${found.name} en ${found.ip}:${found.port}"
+                    tvProgress.text = "Máquina: ${found.name} en ${found.ip}:${found.port}"
                     progressBar.progress = 100
                     Toast.makeText(
                         this@MainActivity, 
-                        "Máquina expendedora detectada automáticamente", 
+                        "Máquina detectada", 
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -346,7 +316,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 runOnUiThread {
                     tvProgress.text =
-                        "Escaneo finalizado. ${dispositivosDetectados.size} dispositivos detectados."
+                        "Finalizado. ${dispositivosDetectados.size} dispositivos"
                     progressBar.progress = 100
                 }
             }
@@ -385,6 +355,35 @@ class MainActivity : AppCompatActivity() {
             adapter.startDiscovery()
         } catch (_: Exception) {
         }
+    }
+
+    // -------- AGREGAR IP MANUAL
+    private fun showManualIPDialog() {
+        val input = EditText(this)
+        input.hint = "192.168.100.24"
+        input.inputType = android.text.InputType.TYPE_CLASS_PHONE
+        
+        AlertDialog.Builder(this)
+            .setTitle("Agregar IP manualmente")
+            .setMessage("Mantén presionado ESCANEAR para agregar IP")
+            .setView(input)
+            .setPositiveButton("Agregar") { _, _ ->
+                val ip = input.text.toString().trim()
+                if (ip.isNotEmpty()) {
+                    val device = DeviceInfo(
+                        ip = ip,
+                        name = "Máquina (manual: $ip)",
+                        type = DeviceType.GENERIC_HTTP
+                    )
+                    dispositivosDetectados.add(device)
+                    dispositivoSeleccionado = device
+                    recyclerViewDevices.adapter?.notifyDataSetChanged()
+                    saveDetectedIp(ip)
+                    Toast.makeText(this, "IP agregada: $ip", Toast.LENGTH_LONG).show()
+                }
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 
     // -------- CONFIG FILE
